@@ -26,7 +26,6 @@ class TrackerMixin:
                 self.name = name
                 self.age = age
                 self.tracker = Tracker()
-                self.tracker.activate()
 
     Attributes:
         tracker_attr (str): The attribute holding the Tracker object.
