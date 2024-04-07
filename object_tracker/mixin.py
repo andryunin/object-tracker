@@ -12,11 +12,15 @@ class TrackerMixin:
     tracker_attr = 'tracker'
 
     def __setattr__(self, attr, value) -> None:
-        if not hasattr(self, self.tracker_attr):
+        tracker: Tracker = getattr(self, self.tracker_attr, None)
+
+        if tracker is None:
+            if attr == self.tracker_attr:
+                super().__setattr__(attr, value)
+                return
             raise RuntimeError(f"TrackerMixin requires a '{self.tracker_attr}' attribute")
 
-        tracker: Tracker = getattr(self, self.tracker_attr)
-        if not tracker or not isinstance(tracker, Tracker):
+        if not isinstance(tracker, Tracker):
             raise RuntimeError(f"TrackerMixin requires a valid Tracker object in '{self.tracker_attr}' attribute")
 
         curr = getattr(self, attr, value)

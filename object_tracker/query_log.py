@@ -35,24 +35,23 @@ class QueryLog:
     def _filter(self, entry: Entry, attrs):
         return entry.attr in attrs if attrs else True
 
-    def _process_filter(self, attrs, exclude=False):
+    def _process_filter(self, attrs=None, exclude=False):
         """
         Processes filter attrs and saves it in the buffer
 
         - exclude = True for exluding attrs
         """
-        _attrs = None
-        if attrs:
-            if isinstance(attrs, list):
-                _attrs = attrs
-
-            elif isinstance(attrs, str):
-                _attrs = [attrs,]
+        if attrs is None:
+            _attrs = []
+        elif isinstance(attrs, str):
+            _attrs = [attrs]
+        else:
+            _attrs = attrs
 
         if exclude:
-            self.buffer = list(filter(lambda x: not self._filter(x, _attrs), self.log))
+            self.buffer = [x for x in self.log if not self._filter(x, _attrs)]
         else:
-            self.buffer = list(filter(lambda x: self._filter(x, _attrs), self.log))
+            self.buffer = [x for x in self.log if self._filter(x, _attrs)]
 
         return self
 
