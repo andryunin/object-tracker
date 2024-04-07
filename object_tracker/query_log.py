@@ -14,9 +14,9 @@ class QueryLog:
     The QueryLog class is responsible for storing and managing a log of attribute changes.
 
     This class provides methods to add new entries to the log, filter the log based on attribute names, 
-    exclude certain attributes from the log, fetch the current log, and clear the log.
+    exclude certain attributes from the log, and clear the log.
     """
-    
+
     def __init__(self) -> None:
         self.log = []
         self.buffer = []
@@ -56,9 +56,9 @@ class QueryLog:
             _attrs = attrs
 
         if exclude:
-            self.buffer = [x for x in self.log if not self._filter(x, _attrs)]
+            self.buffer = [item for item in self.log if not self._filter(item, _attrs)]
         else:
-            self.buffer = [x for x in self.log if self._filter(x, _attrs)]
+            self.buffer = [item for item in self.log if self._filter(item, _attrs)]
 
         return self
 
@@ -89,8 +89,7 @@ class QueryLog:
 
     def flush(self) -> None:
         if self.buffer:
-            for item in self.buffer:
-                self.log.remove(item)
+            self.log = [item for item in self.log if item not in self.buffer]
         else:
             self.log = []
         self.buffer = []
