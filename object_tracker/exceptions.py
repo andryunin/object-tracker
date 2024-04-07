@@ -13,3 +13,12 @@ class InitialStateMissingException(Exception):
 
     def __str__(self):
         return f"InitialStateMissingError -> {self.message}"
+
+
+class InvalidQueryLogOperationException(Exception):
+    def __init__(self, message=None):
+        help = "Invalid operation on QueryLog"
+        self.message = message or help
+
+    def __str__(self):
+        return f"InvalidQueryLogOperationException -> {self.message}"

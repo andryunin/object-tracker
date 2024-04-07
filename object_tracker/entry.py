@@ -5,7 +5,7 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class Entry: 
@@ -22,7 +22,7 @@ class Entry:
         self.attr = attr
         self.old = old
         self.new = new 
-        self.timestamp = datetime.now()
+        self.timestamp = datetime.now(timezone.utc)
 
     def print(self):
         return print(self.__dict__)

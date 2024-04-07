@@ -6,8 +6,8 @@ This source code is licensed under the BSD-style license found in the LICENSE fi
 """
 
 from copy import deepcopy
-from .exceptions import InitialStateMissingException
-from .query_log import QueryLog
+from object_tracker.exceptions import InitialStateMissingException
+from object_tracker.query_log import QueryLog
 
 
 class Tracker:
@@ -15,33 +15,35 @@ class Tracker:
 
     The Tracker
 
-    It maintains 2 lists - 
-        -> log : the permanent store of log entries
-        -> buffer : temporary memory to store state while filtering 
-
     """
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self,
+        initial_state=None,
+        attributes=None,
+        observers=None,
+        attribute_observer_map=None,
+        auto_notify=True,
+        active=False
+    ) -> None:
+        
         self.log = QueryLog() # init query log
-        self.observers = kwargs.get("observers", [])
-        self.auto_notify = kwargs.get("auto_notify", True)
-        self.ignore_init = kwargs.get("ignore_init", True)
-        self.observable_attributes = kwargs.get("observable_attributes", [])
-        self.attribute_observer_map = kwargs.get("attribute_observer_map", {})
-        # needed when this Tracker class is used as a standalone
-        if kwargs.get("initial_state"):
-            self.initial_state = deepcopy(kwargs.get("initial_state"))
-        else:
-            self.initial_state = None
+        self.attributes = attributes or []
+        self.observers = observers or []
+        self.auto_notify = auto_notify
+        self.attribute_observer_map = attribute_observer_map or {}
+        # needed when this Tracker class is used as a standalone class
+        self.initial_state = deepcopy(initial_state) if initial_state else None
+        self.active = active or False
 
     def __str__(self) -> str:
-        return f"Tracker Log -> BUFFER {self.log.buffer_len} LOG {self.log.log_len}"
+        return self.log.__str__()
     
     def __repr__(self) -> str:
-        return str({'log': self.log.log_len, 'buffer': self.log.buffer_len})
+        return self.log.__repr__()
     
     def __len__(self) -> int:
-        return self.log.log_len
+        return len(self.log.log)
 
     def _call_observers(self, attr, old, new, observers: list):
         for observer in observers:
@@ -62,22 +64,35 @@ class Tracker:
             return
         
         if self.observers:
-            if self.observable_attributes and attr not in self.observable_attributes:
+            if self.attributes and attr not in self.attributes:
                 return 
             else:
                 self._call_observers(attr, old, new, self.observers)
 
-    @property
-    def history(self):
+    def activate(self):
         """
-        Query the log by using tracker.history
+        Activates the tracker - now it can track changes without raising exceptions
         """
-        return self.log
+        if not self.active:
+            self.active = True
+
+    def is_active(self) -> bool:
+        """
+        Returns the state of the tracker
+        """
+        return self.active
+    
+    def raise_excp_if_not_active(self):
+        """
+        Raises exception if the tracker is not active
+        """
+        if not self.active:
+            raise InitialStateMissingException("Tracker not active - use tracker.start() to activate it")
 
     def set_initial_state(self, obj) -> None:
         """
         creates a deepcopy of the current object 
-            -> needed when tracker is used independently ie. no ObjectTracker inherited
+            -> needed when tracker is used independently without a mixin for __setattr__
         """
         self.initial_state = deepcopy(obj)
 
@@ -87,7 +102,7 @@ class Tracker:
         """
         self.log.print()
 
-    def attribute_changed(self, attr, obj=None) -> bool:
+    def has_attribute_changed(self, attr, obj=None) -> bool:
         """
         Checks if an attribute has changed by verifying against the log
         """
@@ -97,30 +112,24 @@ class Tracker:
                 raise InitialStateMissingException()
             return getattr(self.initial_state, attr, None) != getattr(obj, attr, None)
 
-        first = None
         last = None
 
-        for i in range(len(self.log.log)):
+        for i in range(len(self.log.log) - 1, -1, -1):
             if attr != self.log.log[i].attr:
                 continue
-            if not first:
-                first = self.log.log[i]
-                continue
-            last = self.log.log[i]
+            if not last:
+                last = self.log.log[i]
+                break
 
-        if not first:
+        if not last:
             return False
 
-        if first and not last:
-            return True if first.old != first.new else False
+        return last.old != last.new
 
-        return first.old != last.new
-
-    def changed(self, obj=None) -> bool:
+    def has_changed(self, obj=None) -> bool:
         """
-        Checks if any attribute of the object has been hanged by verifying against the log
+        Checks if any attribute of the object has been changed by verifying against the log
         """
-
         if obj:
             if not self.initial_state:
                 raise InitialStateMissingException()
@@ -130,7 +139,14 @@ class Tracker:
         for entry in self.log.log:
             if entry.attr in seen:
                 continue
-            if self.attribute_changed(entry.attr):
+            if self.has_attribute_changed(entry.attr):
                 return True
             seen.add(entry.attr)
         return False
+    
+    def track(self, attr, old, new):
+        """
+        Tracks an attribute change
+        """
+        self.raise_excp_if_not_active()
+        self.log.push(attr=attr, old=old, new=new)
