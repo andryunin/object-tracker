@@ -5,9 +5,12 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 """
 
+import logging
 from copy import deepcopy
 from object_tracker.exceptions import InitialStateMissingException
 from object_tracker.query_log import QueryLog
+
+logger = logging.getLogger(__name__)
 
 
 class Tracker:
@@ -24,7 +27,7 @@ class Tracker:
         observers=None,
         attribute_observer_map=None,
         auto_notify=True,
-        active=False
+        active=True
     ) -> None:
         
         self.log = QueryLog() # init query log
@@ -34,7 +37,8 @@ class Tracker:
         self.attribute_observer_map = attribute_observer_map or {}
         # needed when this Tracker class is used as a standalone class
         self.initial_state = deepcopy(initial_state) if initial_state else None
-        self.active = active or False
+        self.active = active or True
+        logger.debug(f"Tracker instance created: {self}")
 
     def __str__(self) -> str:
         return self.log.__str__()
@@ -61,6 +65,7 @@ class Tracker:
         if self.attribute_observer_map:
             observers = self.attribute_observer_map.get(attr, [])
             self._call_observers(attr, old, new, observers)
+            logger.debug(f"Observers notified for change in {attr}")
             return
         
         if self.observers:
@@ -68,6 +73,7 @@ class Tracker:
                 return 
             else:
                 self._call_observers(attr, old, new, self.observers)
+                logger.debug(f"Observers notified for change in {attr}")
 
     def activate(self):
         """
@@ -75,6 +81,15 @@ class Tracker:
         """
         if not self.active:
             self.active = True
+            logger.debug(f"Tracker activated: {self}")
+
+    def deactivate(self):
+        """
+        Deactivates the tracker - now it cannot track changes
+        """
+        if self.active:
+            self.active = False
+            logger.debug(f"Tracker deactivated: {self}")
 
     def is_active(self) -> bool:
         """
@@ -95,6 +110,7 @@ class Tracker:
             -> needed when tracker is used independently without a mixin for __setattr__
         """
         self.initial_state = deepcopy(obj)
+        logger.debug(f"Initial state set for {self}")
 
     def print(self):
         """
@@ -144,9 +160,13 @@ class Tracker:
             seen.add(entry.attr)
         return False
     
-    def track(self, attr, old, new):
+    def track(self, attr, old, new, raise_excp=True):
         """
         Tracks an attribute change
         """
-        self.raise_excp_if_not_active()
+        if raise_excp:
+            self.raise_excp_if_not_active()
         self.log.push(attr=attr, old=old, new=new)
+
+        if self.auto_notify:
+            self.notify_observers(attr, old, new)

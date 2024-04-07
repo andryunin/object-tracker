@@ -11,10 +11,9 @@ def observer(attr, old, new):
 # Demo object for testing
 class User(TrackerMixin):
     def __init__(self, name, age) -> None:
-        self.tracker = Tracker(observers=[observer,])
         self.name = name
         self.age = age
-        self.tracker.activate()
+        self.tracker = Tracker(observers=[observer,])
 
 class UntrackedUser:
     def __init__(self, name, age) -> None:
@@ -120,3 +119,21 @@ class TestObjectTracker(unittest.TestCase):
                 assert self.user.tracker.has_changed() is True
 
         Example("A", 50)
+
+    def test_activate_deactivate(self):
+        user = User("A", 100)
+        self.assertTrue(user.tracker.is_active())
+
+        user.name = "B"
+        self.assertTrue(user.tracker.has_changed())
+        self.assertEqual(len(user.tracker.log), 1)
+
+        user.tracker.deactivate()
+        self.assertFalse(user.tracker.is_active())
+        user.name = "C"
+        self.assertEqual(len(user.tracker.log), 1)
+
+        user.tracker.activate()
+        self.assertTrue(user.tracker.is_active())
+        user.name = "D"
+        self.assertEqual(len(user.tracker.log), 2)
