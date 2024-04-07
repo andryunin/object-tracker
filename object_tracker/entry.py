@@ -10,14 +10,15 @@ from datetime import datetime, timezone
 
 class Entry: 
     """
-        A single record in the Change log
-        
-        Contains the following attributes - 
-        - attr: str 
-        - old: any
-        - new: any
-        - timestamp: datetime.datetime
+    The Entry class represents a single record in the attribute change log.
+    
+    Attributes:
+        attr (str): The name of the attribute that changed.
+        old (any): The old value of the attribute.
+        new (any): The new value of the attribute.
+        timestamp (datetime): The UTC datetime object of when the change occurred.
     """
+
     def __init__(self, attr, old, new) -> None:
         self.attr = attr
         self.old = old

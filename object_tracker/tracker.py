@@ -15,9 +15,32 @@ logger = logging.getLogger(__name__)
 
 class Tracker:
     """
+    The Tracker class is responsible for tracking changes to an object's attributes.
 
-    The Tracker
+    This class can be used - 
 
+    1. By itself to track changes to an object's attributes.
+
+        obj = MyClass()
+        tracker = Tracker(obj)
+        obj.attribute = 'new_value'
+        print(tracker.has_changed(obj))
+    
+    2. Along with the TrackerMixin class to automatically track changes to an object's attributes.
+
+        class MyClass(TrackerMixin):
+            def __init__(self):
+                self.tracker = Tracker()
+
+        obj = MyClass()
+        obj.attribute = 'new_value'
+        print(obj.tracker.has_changed())
+
+    3. Manually by calling the track method to track changes to an attribute.
+
+        tracker = Tracker()
+        tracker.track('attribute', 'old_value', 'new_value')
+        print(tracker.has_attribute_changed('attribute'))
     """
 
     def __init__(
@@ -145,6 +168,8 @@ class Tracker:
     def has_changed(self, obj=None) -> bool:
         """
         Checks if any attribute of the object has been changed by verifying against the log
+
+        If obj is provided, it will compare the object with the initial_state. If not, it will check the log
         """
         if obj:
             if not self.initial_state:

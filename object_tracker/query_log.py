@@ -10,6 +10,13 @@ from object_tracker.exceptions import InvalidQueryLogOperationException
 
 
 class QueryLog:
+    """
+    The QueryLog class is responsible for storing and managing a log of attribute changes.
+
+    This class provides methods to add new entries to the log, filter the log based on attribute names, 
+    exclude certain attributes from the log, fetch the current log, and clear the log.
+    """
+    
     def __init__(self) -> None:
         self.log = []
         self.buffer = []

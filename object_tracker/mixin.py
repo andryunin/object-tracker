@@ -21,13 +21,12 @@ class TrackerMixin:
     Until a tracker is set and activated, the mixin will behave like a normal class.
 
     Eg.
-    ```python
-    class User(TrackerMixin):
-        def __init__(self, name, age):
-            self.name = name
-            self.age = age
-            self.tracker = Tracker()
-            self.tracker.activate()
+        class User(TrackerMixin):
+            def __init__(self, name, age):
+                self.name = name
+                self.age = age
+                self.tracker = Tracker()
+                self.tracker.activate()
 
     Attributes:
         tracker_attr (str): The attribute holding the Tracker object.
