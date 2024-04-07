@@ -5,10 +5,9 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 """
 
-from .entry import Entry
 from .exceptions import InitialStateMissingException, InvalidQueryLogOperationException
 from .mixin import TrackerMixin
-from .query_log import QueryLog
+from .query_log import Entry, QueryLog
 from .tracker import Tracker
 
 

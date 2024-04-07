@@ -119,13 +119,6 @@ class Tracker:
         Returns the state of the tracker
         """
         return self.active
-    
-    def raise_excp_if_not_active(self):
-        """
-        Raises exception if the tracker is not active
-        """
-        if not self.active:
-            raise InitialStateMissingException("Tracker not active - use tracker.start() to activate it")
 
     def set_initial_state(self, obj) -> None:
         """
@@ -176,21 +169,15 @@ class Tracker:
                 raise InitialStateMissingException()
             return obj.__dict__ != self.initial_state.__dict__
 
-        seen = set()
-        for entry in self.log.log:
-            if entry.attr in seen:
-                continue
-            if self.has_attribute_changed(entry.attr):
-                return True
-            seen.add(entry.attr)
-        return False
+        return any(self.has_attribute_changed(entry.attr) for entry in self.log.log)
     
     def track(self, attr, old, new, raise_excp=True):
         """
         Tracks an attribute change
         """
-        if raise_excp:
-            self.raise_excp_if_not_active()
+        if raise_excp and not self.active:
+            raise InitialStateMissingException("Tracker not active - use tracker.activate() to activate it")
+        
         self.log.push(attr=attr, old=old, new=new)
 
         if self.auto_notify:

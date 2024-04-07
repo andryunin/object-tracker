@@ -5,8 +5,32 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 """
 
-from object_tracker.entry import Entry
+from collections import namedtuple
+from datetime import datetime, timezone
 from object_tracker.exceptions import InvalidQueryLogOperationException
+
+
+_BaseEntry = namedtuple('Entry', ['attr', 'old', 'new', 'timestamp'])
+
+
+class Entry(_BaseEntry):
+    """
+    The Entry class represents a single record in the attribute change log.
+
+    Attributes:
+        attr (str): The name of the attribute that changed.
+        old (any): The old value of the attribute.
+        new (any): The new value of the attribute.
+        timestamp (datetime): The UTC datetime object of when the change occurred.
+    """
+    def __new__(cls, attr, old, new):
+        return super().__new__(cls, attr, old, new, datetime.now(timezone.utc))
+
+    def __str__(self) -> str:
+        return f"{self.timestamp} - ATTR '{self.attr}' : OLD - '{self.old}' : NEW - '{self.new}'"
+
+    def __repr__(self):
+        return str({'attr': self.attr, 'old': self.old, 'new': self.new, 'timestamp': self.timestamp})
 
 
 class QueryLog:
