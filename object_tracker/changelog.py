@@ -178,17 +178,16 @@ class ChangeLog:
         log = self.get_selected_logs()
         return set([entry.attr for entry in log])
     
-    def get_first_log_for_attribute(self, attr, reverse=False, only_changes=False):
+    def get_first_log_for_attribute(self, attr, reverse=False):
         """
         Helper function to get a log entry.
         """
         range_func = reversed if reverse else iter
         for i in range_func(range(len(self.log))):
-            if attr is not None and self.log[i].attr != attr:
+            if self.log[i].attr != attr:
                 continue
-            if only_changes and not self.log[i].is_a_change():
-                continue
-            return self.log[i]
+            if self.log[i].is_a_change():
+                return self.log[i]
         return None
     
     def has_changed(self, attr) -> bool:
@@ -200,13 +199,10 @@ class ChangeLog:
 
         if not first and not last:
             return False
-        
         if not first or not last:
             return True
-        
         if first.old != last.new:
             return True
-
         return False
 
     def replay(self):
