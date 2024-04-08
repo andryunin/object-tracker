@@ -3,7 +3,7 @@ python -m unittest tests.test_tracker -v
 """
 
 import unittest
-from object_tracker import InitialStateMissingException, Tracker, TrackerMixin
+from object_tracker import InitialStateMissingException, track, Tracker, TrackerMixin
 
 def observer(attr, old, new):
     return attr, old, new
@@ -130,3 +130,66 @@ class TestObjectTracker(unittest.TestCase):
                 assert self.user.tracker.has_changed() is True
 
         Example("A", 50)
+
+
+class TestTrackingDecorator(unittest.TestCase):
+    """
+    Test case for the `track` decorator.
+    """
+
+    def setUp(self):
+        @track('name', 'age', observers=[observer])
+        class TrackedUser:
+            def __init__(self, name, age) -> None:
+                self.name = name
+                self.age = age
+
+        self.TrackedUser = TrackedUser
+
+    def test_change(self):
+        user = self.TrackedUser("A", 100)
+        self.assertFalse(user.tracker.has_changed())
+        user.name = "B"
+        self.assertTrue(user.tracker.has_changed())
+
+    def test_attribute_change(self):
+        user = self.TrackedUser("A", 100)
+        self.assertFalse(user.tracker.has_attribute_changed('name'))
+        user.name = "B"
+        self.assertTrue(user.tracker.has_attribute_changed('name'))
+
+    def test_defaults(self):
+        user = self.TrackedUser("A", 100)
+        self.assertTrue(user.tracker.auto_notify)
+        self.assertEqual(len(user.tracker.log), 0)
+
+        user_2 = self.TrackedUser("B", 50)
+        assert user.name == "A"
+        assert user_2.name == "B"
+        assert user_2.age == 50
+
+        self.assertEqual(len(user.tracker.observers), 1)
+        assert callable(user.tracker.observers[0])
+
+    def test_track_initial_state(self):
+        user = self.TrackedUser("A", 100)
+        user.tracker.set_initial_state(user)
+        self.assertFalse(user.tracker.has_changed())
+        self.assertFalse(user.tracker.has_attribute_changed('name'))
+        user.name = "B"
+        self.assertTrue(user.tracker.has_changed())
+        self.assertTrue(user.tracker.has_attribute_changed('name'))
+
+    def test_tracker_attribute(self):
+        @track('name', tracker_attribute='custom_tracker')
+        class CustomTrackedUser:
+            def __init__(self, name, age) -> None:
+                self.name = name
+                self.age = age
+
+        user = CustomTrackedUser("A", 100)
+        self.assertTrue(hasattr(user, 'custom_tracker'))
+        self.assertFalse(hasattr(user, 'tracker'))
+        self.assertFalse(user.custom_tracker.has_changed())
+        user.name = "B"
+        self.assertTrue(user.custom_tracker.has_changed())
