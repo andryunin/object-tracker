@@ -46,8 +46,20 @@ class TestTracker(unittest.TestCase):
 
         self.assertEqual(qs[0].attr, 'age')
 
+        # Tests for first() and last()
+        user.name = "C"
+        user.age = 30
+        self.assertEqual(user.tracker.log.first().new, "B")
+        self.assertEqual(user.tracker.log.first().old, "A")
+        self.assertEqual(user.tracker.log.last().new, 30)
+        self.assertEqual(user.tracker.log.last().old, 20)
+
+        self.assertEqual(user.tracker.log.filter('name').count(), 2)
+        self.assertEqual(user.tracker.log.filter('name').first().new, "B")
+        self.assertEqual(user.tracker.log.filter('name').last().new, "C")
+
         user.tracker.log.exclude('name').flush()
-        self.assertEqual(user.tracker.log.count(), 1)
+        self.assertEqual(user.tracker.log.count(), 2)
         self.assertEqual(user.tracker.log.log[0].attr, 'name')
 
         user.tracker.log.flush()
@@ -137,3 +149,8 @@ class TestObjectTracker(unittest.TestCase):
         self.assertTrue(user.tracker.is_active())
         user.name = "D"
         self.assertEqual(len(user.tracker.log), 2)
+
+        self.assertEqual(user.tracker.log.last().new, "D")
+        self.assertEqual(user.tracker.log.last().old, "C")
+        self.assertEqual(user.tracker.log.first().new, "B")
+        self.assertEqual(user.tracker.log.first().old, "A")

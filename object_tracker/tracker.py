@@ -72,18 +72,16 @@ class Tracker:
     def __len__(self) -> int:
         return len(self.log.log)
 
-    def _call_observers(self, attr, old, new, observers: list):
+    def _call_observers(self, attr, old, new, observers: list) -> None:
         for observer in observers:
             observer(attr, old, new)
 
     def notify_observers(self, attr, old, new) -> None:
         """
-
         Notifies all observers 
 
         if self.auto_notify is False
         This method will have to be called manually
-
         """
         if self.attribute_observer_map:
             observers = self.attribute_observer_map.get(attr, [])
@@ -98,7 +96,7 @@ class Tracker:
                 self._call_observers(attr, old, new, self.observers)
                 logger.debug(f"Observers notified for change in {attr}")
 
-    def activate(self):
+    def activate(self) -> None:
         """
         Activates the tracker - now it can track changes without raising exceptions
         """
@@ -106,7 +104,7 @@ class Tracker:
             self.active = True
             logger.debug(f"Tracker activated: {self}")
 
-    def deactivate(self):
+    def deactivate(self) -> None:
         """
         Deactivates the tracker - now it cannot track changes
         """
@@ -128,35 +126,22 @@ class Tracker:
         self.initial_state = deepcopy(obj)
         logger.debug(f"Initial state set for {self}")
 
-    def print(self):
+    def to_dict(self) -> dict:
         """
-        Utility std print fn
+        Returns the log as a dictionary
         """
-        self.log.print()
+        return self.log.to_dict()
 
     def has_attribute_changed(self, attr, obj=None) -> bool:
         """
         Checks if an attribute has changed by verifying against the log
         """
-
         if obj:
             if not self.initial_state:
                 raise InitialStateMissingException()
             return getattr(self.initial_state, attr, None) != getattr(obj, attr, None)
 
-        last = None
-
-        for i in range(len(self.log.log) - 1, -1, -1):
-            if attr != self.log.log[i].attr:
-                continue
-            if not last:
-                last = self.log.log[i]
-                break
-
-        if not last:
-            return False
-
-        return last.old != last.new
+        return self.log.has_changes(attr)
 
     def has_changed(self, obj=None) -> bool:
         """
@@ -169,14 +154,18 @@ class Tracker:
                 raise InitialStateMissingException()
             return obj.__dict__ != self.initial_state.__dict__
 
-        return any(self.has_attribute_changed(entry.attr) for entry in self.log.log)
+        attrs = self.log.get_unique_attributes()
+        return any([self.log.has_changes(attr) for attr in attrs])
     
-    def track(self, attr, old, new, raise_excp=True):
+    def track(self, attr, old, new, raise_excp=True) -> None:
         """
-        Tracks an attribute change
+        Tracks an attribute change. Untracked if the old and new values are the same
         """
         if raise_excp and not self.active:
             raise InitialStateMissingException("Tracker not active - use tracker.activate() to activate it")
+        
+        if old == new:
+            return
         
         self.log.push(attr=attr, old=old, new=new)
 
