@@ -40,21 +40,26 @@ class TrackerMixin:
         super().__init__(*args, **kwargs)
         logger.debug(f"TrackerMixin initialized for {self}")
 
-    def __setattr__(self, attr, value) -> None:
-        tracker: Tracker = getattr(self, self.tracker_attr, None)
-
-        if tracker is None:
-            super().__setattr__(attr, value)
+    def __track_changes(self, attr, value, tracker=None) -> None:
+        if attr == self.tracker_attr:
+            if not isinstance(value, Tracker):
+                raise RuntimeError(
+                    f"TrackerMixin requires a valid Tracker object in '{self.tracker_attr}' attribute")
             return
+        
+        tracker: Tracker = getattr(self, self.tracker_attr, None)
+        if tracker is None:
+            return None
+        
+        if tracker.should_track(attr):
+            curr = getattr(self, attr, value)
+            tracker.track(attr=attr, old=curr, new=value)
+        return
 
-        if not isinstance(tracker, Tracker):
-            raise RuntimeError(f"TrackerMixin requires a valid Tracker object in '{self.tracker_attr}' attribute")
-
-        curr = getattr(self, attr, value)
+    def __setattr__(self, attr, value) -> None:
+        self.__track_changes(attr, value)
         super().__setattr__(attr, value)
 
-        if tracker.is_active():
-            tracker.track(attr=attr, old=curr, new=value)
-        else:
-            logger.debug(f"Tracker is set, but not active for {self}.\nUse tracker.activate() to enable tracking.")
-        return
+    def __setitem__(self, attr, value) -> None:
+        self.__track_changes(attr, value)
+        super().__setitem__(attr, value)

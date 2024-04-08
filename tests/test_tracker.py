@@ -95,7 +95,6 @@ class TestObjectTracker(unittest.TestCase):
 
     def test_defaults(self):
         user = User("A", 100)
-        self.assertTrue(user.tracker.active)
         self.assertTrue(user.tracker.auto_notify)
         self.assertEqual(len(user.tracker.log), 0)
 
@@ -131,26 +130,3 @@ class TestObjectTracker(unittest.TestCase):
                 assert self.user.tracker.has_changed() is True
 
         Example("A", 50)
-
-    def test_activate_deactivate(self):
-        user = User("A", 100)
-        self.assertTrue(user.tracker.is_active())
-
-        user.name = "B"
-        self.assertTrue(user.tracker.has_changed())
-        self.assertEqual(len(user.tracker.log), 1)
-
-        user.tracker.deactivate()
-        self.assertFalse(user.tracker.is_active())
-        user.name = "C"
-        self.assertEqual(len(user.tracker.log), 1)
-
-        user.tracker.activate()
-        self.assertTrue(user.tracker.is_active())
-        user.name = "D"
-        self.assertEqual(len(user.tracker.log), 2)
-
-        self.assertEqual(user.tracker.log.last().new, "D")
-        self.assertEqual(user.tracker.log.last().old, "C")
-        self.assertEqual(user.tracker.log.first().new, "B")
-        self.assertEqual(user.tracker.log.first().old, "A")

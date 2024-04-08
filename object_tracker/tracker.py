@@ -64,7 +64,6 @@ class Tracker:
         observers: List[ObserverType] = None,
         attribute_observer_map: Dict[str, List[ObserverType]] = None,
         auto_notify: bool = True,
-        active: bool = True,
     ) -> None:
         
         self.log = ChangeLog() # init query log
@@ -74,7 +73,6 @@ class Tracker:
         self.attribute_observer_map = attribute_observer_map or {}
         # needed when this Tracker class is used as a standalone class
         self.initial_state = deepcopy(initial_state) if initial_state else None
-        self.active = active or True
         logger.debug(f"Tracker instance created: {self}")
 
     def __str__(self) -> str:
@@ -105,35 +103,13 @@ class Tracker:
             self._call_observers(attr, old, new, self.observers)
             logger.debug(f"Common Observers notified for change in {attr}")
 
-    def can_track_attribute(self, attr) -> bool:
+    def should_track(self, attr) -> bool:
         """
         Checks if the attribute can be tracked
         """
         if self.attributes is None:
             return True
         return attr in self.attributes
-
-    def activate(self) -> None:
-        """
-        Activates the tracker - now it can track changes without raising exceptions
-        """
-        if not self.active:
-            self.active = True
-            logger.debug(f"Tracker activated: {self}")
-
-    def deactivate(self) -> None:
-        """
-        Deactivates the tracker - now it cannot track changes
-        """
-        if self.active:
-            self.active = False
-            logger.debug(f"Tracker deactivated: {self}")
-
-    def is_active(self) -> bool:
-        """
-        Returns the state of the tracker
-        """
-        return self.active
 
     def set_initial_state(self, obj) -> None:
         """
@@ -177,15 +153,9 @@ class Tracker:
     def track(self, attr, old, new, raise_excp=True) -> None:
         """
         Tracks an attribute change. Untracked if the old and new values are the same
-        """
-        if raise_excp and not self.active:
-            raise InitialStateMissingException("Tracker not active - use tracker.activate() to activate it")
-        
+        """            
         if old == new:
             return
-        
-        if self.can_track_attribute(attr):
-            self.log.push(attr=attr, old=old, new=new)
-
-            if self.auto_notify:
-                self.notify_observers(attr, old, new)
+        self.log.push(attr=attr, old=old, new=new)
+        if self.auto_notify:
+            self.notify_observers(attr, old, new)
