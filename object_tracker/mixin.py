@@ -34,7 +34,7 @@ class TrackerMixin:
         tracker_attr (str): The attribute holding the Tracker object.
     """
 
-    tracker_attr = 'tracker'
+    tracker_attr: str = 'tracker'
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)

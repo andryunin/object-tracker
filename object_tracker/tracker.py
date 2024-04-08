@@ -7,10 +7,15 @@ This source code is licensed under the BSD-style license found in the LICENSE fi
 
 import logging
 from copy import deepcopy
+from typing import Callable, Dict, List
+
 from object_tracker.exceptions import InitialStateMissingException
-from object_tracker.query_log import QueryLog
+from object_tracker.changelog import ChangeLog
 
 logger = logging.getLogger(__name__)
+
+
+ObserverType = Callable[[str, object, object], None]
 
 
 class Tracker:
@@ -54,16 +59,16 @@ class Tracker:
 
     def __init__(
         self,
-        initial_state=None,
-        attributes=None,
-        observers=None,
-        attribute_observer_map=None,
-        auto_notify=True,
-        active=True
+        initial_state: any = None,
+        attributes: List[str] = None,
+        observers: List[ObserverType] = None,
+        attribute_observer_map: Dict[str, List[ObserverType]] = None,
+        auto_notify: bool = True,
+        active: bool = True,
     ) -> None:
         
-        self.log = QueryLog() # init query log
-        self.attributes = attributes or []
+        self.log = ChangeLog() # init query log
+        self.attributes = attributes # if it is None -> track all attributes
         self.observers = observers or []
         self.auto_notify = auto_notify
         self.attribute_observer_map = attribute_observer_map or {}
@@ -81,7 +86,7 @@ class Tracker:
     def __len__(self) -> int:
         return len(self.log.log)
 
-    def _call_observers(self, attr, old, new, observers: list) -> None:
+    def _call_observers(self, attr, old, new, observers: List[ObserverType]) -> None:
         for observer in observers:
             observer(attr, old, new)
 
@@ -89,21 +94,24 @@ class Tracker:
         """
         Notifies all observers 
 
-        if self.auto_notify is False
-        This method will have to be called manually
+        if auto_notify is False, this will have to be invoked manually.
         """
         if self.attribute_observer_map:
             observers = self.attribute_observer_map.get(attr, [])
             self._call_observers(attr, old, new, observers)
-            logger.debug(f"Observers notified for change in {attr}")
-            return
+            logger.debug(f"Attribute Observers notified for change in {attr}")
         
         if self.observers:
-            if self.attributes and attr not in self.attributes:
-                return 
-            else:
-                self._call_observers(attr, old, new, self.observers)
-                logger.debug(f"Observers notified for change in {attr}")
+            self._call_observers(attr, old, new, self.observers)
+            logger.debug(f"Common Observers notified for change in {attr}")
+
+    def can_track_attribute(self, attr) -> bool:
+        """
+        Checks if the attribute can be tracked
+        """
+        if self.attributes is None:
+            return True
+        return attr in self.attributes
 
     def activate(self) -> None:
         """
@@ -176,7 +184,8 @@ class Tracker:
         if old == new:
             return
         
-        self.log.push(attr=attr, old=old, new=new)
+        if self.can_track_attribute(attr):
+            self.log.push(attr=attr, old=old, new=new)
 
-        if self.auto_notify:
-            self.notify_observers(attr, old, new)
+            if self.auto_notify:
+                self.notify_observers(attr, old, new)

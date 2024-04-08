@@ -154,7 +154,7 @@ There are a bunch of config variables that can be modified when inheriting the `
 
 - `ignore_init` - default `True` - Ignore changes made from `__init__` functions. These will not be pushed to the changelog or be notified. 
 
-- `log` -> An instance of `QueryLog`, stores a structured log and exposes a query interface to object history. [Read more about it here](#history)
+- `log` -> An instance of `ChangeLog`, stores a structured log and exposes a query interface to object history. [Read more about it here](#history)
 
 - `observers, observable_attributes, attribute_observer_map` -> Read more about [adding observers](#observers)
 
@@ -207,9 +207,9 @@ print(user.tracker.attribute_changed('age'))
 <span id="history"></span>
 ### History
 
-Each `Tracker` object has a structured change history log - `self.log` - for all the attributes, an instance of `QueryLog`.
+Each `Tracker` object has a structured change history log - `self.log` - for all the attributes, an instance of `ChangeLog`.
 
-The `QueryLog` object maintains 2 lists, a `log` of every change and a query `buffer` for temporary storage while [querying](#query)
+The `ChangeLog` object maintains 2 lists, a `log` of every change and a query `buffer` for temporary storage while [querying](#query)
 
 Both lists carry instances of `Entry`, a structured log record containing 
 
@@ -221,7 +221,7 @@ Both lists carry instances of `Entry`, a structured log record containing
 
 - `timestamp` - An instance of `datetime.datetime` 
 
-Every change is implicitly pushed - `push(attr, old, new)` - to the `QueryLog` instance. 
+Every change is implicitly pushed - `push(attr, old, new)` - to the `ChangeLog` instance. 
 
 The log/history instance can be accessed by `self.history` or `self.log` 
 
@@ -233,7 +233,7 @@ user.name = "B"
 user.tracker.print()
 user.tracker.history.print() 
 
-history = user.tracker.history.fetch()
+history = user.tracker.history.all()
 print(history) 
 
 ```
@@ -244,13 +244,13 @@ print(history)
 <span id="query"></span>
 ### Querying change history
 
-The `QueryLog` class offers a simple query interface to filter logs - 
+The `ChangeLog` class offers a simple query interface to filter logs - 
 
 Terminal methods (do not chain ie. `return self`) - 
 
-- `fetch(self)` - returns the current query buffer
+- `all(self)` - returns the current query buffer
 
-- `flush(self)` - Flushes the entire query buffer
+- `delete(self)` - deletees the entire query buffer
 
 - `count(self)` - Counts the number of log entries 
 
@@ -260,7 +260,7 @@ Chaned methods (`return self`) -
 
 - `exclude(self, atrrs)` - Accepts an optional attribute string OR list of attribute strings, and excludes their logs from the query buffer
 
-The `QueryLog` instance can be accessed by `tracker.history` or `tracker.log`
+The `ChangeLog` instance can be accessed by `tracker.history` or `tracker.log`
 
 ```python 
 
@@ -280,7 +280,7 @@ user.tracker.history.print()
 print(user.tracker.history.count())
 # 2
 
-name_history = user.tracker.history.filter('name').fetch()
+name_history = user.tracker.history.filter('name').all()
 print(name_history)
 # [{'attr': 'name', 'old': 'A', 'new': 'B', 'timestamp': datetime.datetime(2023, 3, 15, 15, 4, 52, 583628)}]
 
@@ -290,12 +290,12 @@ print(user.tracker.history.filter('name').count())
 print(user.tracker.history.exclude('name').count())
 # 1
 
-user.tracker.history.filter('age').flush()
+user.tracker.history.filter('age').delete()
 
 print(user.tracker.history.count())
 # 1
 
-user.tracker.history.flush()
+user.tracker.history.delete()
 
 print(user.tracker.history.count())
 # 0
@@ -437,7 +437,7 @@ print(tracker.changed(user))
 
 - The `Tracker` object has to contain the `initial_state` of the object you intend to track, otherwise calling `changed(obj)` or `attribute_changed(obj)` will raise a `InitialStateMissingException` 
 
-- The standalone instance DOES NOT use the `QueryLog` object, hence the change tracker fully depends on the difference of initial_state and the current object's `__dict__` representation. Hence there is no history to query ie. It will be empty always. 
+- The standalone instance DOES NOT use the `ChangeLog` object, hence the change tracker fully depends on the difference of initial_state and the current object's `__dict__` representation. Hence there is no history to query ie. It will be empty always. 
 
 [Go back to the table of contents](#contents)
 

@@ -15,10 +15,10 @@ class InitialStateMissingException(Exception):
         return f"InitialStateMissingError -> {self.message}"
 
 
-class InvalidQueryLogOperationException(Exception):
+class InvalidChangeLogOperationException(Exception):
     def __init__(self, message=None):
-        help = "Invalid operation on QueryLog"
+        help = "Invalid operation on ChangeLog"
         self.message = message or help
 
     def __str__(self):
-        return f"InvalidQueryLogOperationException -> {self.message}"
+        return f"InvalidChangeLogOperationException -> {self.message}"
