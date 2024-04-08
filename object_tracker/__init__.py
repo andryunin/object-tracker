@@ -39,6 +39,7 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 """
 
+import inspect
 import logging
 from .exceptions import InitialStateMissingException, InvalidChangeLogOperationException
 from .changelog import Entry, ChangeLog
@@ -94,7 +95,12 @@ class TrackerMixin:
 
         if tracker.should_track(attr):
             curr = getattr(self, attr, value)
-            tracker.track(attr=attr, old=curr, new=value)
+            stack = None
+            if tracker.store_call_stack():
+                stack = filter(
+                    lambda f: not __file__.startswith(f.filename), inspect.stack()
+                )
+            tracker.track(attr=attr, old=curr, new=value, stack=stack)
 
         return
 
@@ -112,7 +118,9 @@ def track(
     observers: list = None,
     attribute_observer_map: dict = None,
     auto_notify: bool = True,
+    stack_trace: bool = True,
     tracker_attribute: str = 'tracker',
+    changes_only: bool = False,
 ):
     """
     Decorator for tracking attribute changes in a class.
@@ -155,6 +163,8 @@ def track(
                         observers=observers,
                         attribute_observer_map=attribute_observer_map,
                         auto_notify=auto_notify,
+                        stack_trace=stack_trace,
+                        changes_only=changes_only,
                     ),
                 )
 

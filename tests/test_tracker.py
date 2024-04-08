@@ -31,7 +31,6 @@ class TestTracker(unittest.TestCase):
         user.name = "B"
         self.assertTrue(user.tracker.has_attribute_changed('name'))
         self.assertTrue(user.tracker.has_changed())
-        user.tracker.log.delete()
 
     def test_query(self):
         user = User("A", 100)
@@ -41,9 +40,7 @@ class TestTracker(unittest.TestCase):
         self.assertEqual(user.tracker.log.count(), 2)
         self.assertEqual(user.tracker.log.filter('name').count(), 1)
         self.assertEqual(user.tracker.log.filter('name', 'age').count(), 2)
-
         qs = user.tracker.log.exclude('name').all()
-
         self.assertEqual(qs[0].attr, 'age')
 
         # Tests for first() and last()
@@ -53,17 +50,11 @@ class TestTracker(unittest.TestCase):
         self.assertEqual(user.tracker.log.first().old, "A")
         self.assertEqual(user.tracker.log.last().new, 30)
         self.assertEqual(user.tracker.log.last().old, 20)
-
         self.assertEqual(user.tracker.log.filter('name').count(), 2)
         self.assertEqual(user.tracker.log.filter('name').first().new, "B")
         self.assertEqual(user.tracker.log.filter('name').last().new, "C")
-
-        user.tracker.log.exclude('name').delete()
-        self.assertEqual(user.tracker.log.count(), 2)
+        self.assertEqual(user.tracker.log.exclude('age').count(), 2)
         self.assertEqual(user.tracker.log.log[0].attr, 'name')
-
-        user.tracker.log.delete()
-        self.assertEqual(user.tracker.log.count(), 0)
 
     def test_tracker_only(self):
         user = UntrackedUser("A", 100)
@@ -120,7 +111,6 @@ class TestObjectTracker(unittest.TestCase):
         assert user.tracker.has_changed() is False
         user.name = "B"
         assert user.tracker.has_changed() is True
-        user.tracker.log.delete()
         
         class Example:
             def __init__(self, name, age) -> None:

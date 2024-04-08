@@ -64,7 +64,8 @@ class Tracker:
         observers: List[ObserverType] = None,
         attribute_observer_map: Dict[str, List[ObserverType]] = None,
         auto_notify: bool = True,
-        changes_only: bool = True,
+        stack_trace: bool = True,
+        changes_only: bool = False,
     ) -> None:
         
         self.log = ChangeLog() # init query log
@@ -72,6 +73,7 @@ class Tracker:
         self.observers = observers or []
         self.auto_notify = auto_notify
         self.attribute_observer_map = attribute_observer_map or {}
+        self.stack_trace = stack_trace
         self.changes_only = changes_only
         # needed when this Tracker class is used as a standalone class
         self.initial_state = deepcopy(initial_state) if initial_state else None
@@ -112,6 +114,12 @@ class Tracker:
         if self.attributes is None:
             return True
         return attr in self.attributes
+    
+    def store_call_stack(self) -> bool:
+        """
+        Returns whether the call stack should be stored
+        """
+        return self.stack_trace
 
     def set_initial_state(self, obj) -> None:
         """
@@ -152,12 +160,12 @@ class Tracker:
         attrs = self.log.get_unique_attributes()
         return any([self.log.has_changed(attr) for attr in attrs])
     
-    def track(self, attr, old, new) -> None:
+    def track(self, attr, old, new, stack=None) -> None:
         """
         Tracks an attribute change. Untracked if the old and new values are the same
         """
         if self.changes_only and old == new:
             return
-        self.log.push(attr=attr, old=old, new=new)
+        self.log.push(attr=attr, old=old, new=new, stack=stack)
         if self.auto_notify:
             self.notify_observers(attr, old, new)

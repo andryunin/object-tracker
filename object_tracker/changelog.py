@@ -45,13 +45,13 @@ class Frame(namedtuple('Frame', ['filename', 'lineno', 'function', 'code'])):
         return f"{self.filename}: {self.lineno}, {self.function}\n{self.code}"
 
 
-class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp', 'frames'])):
+class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp', 'stack'])):
     """
     The Entry class is a named tuple that represents a single log entry in the ChangeLog.
     """
-    def __new__(cls, attr, old, new, frames: List[Frame] = None):
-        if frames:
-            frames = [Frame(frame) for frame in frames]
+    def __new__(cls, attr, old, new, stack: List[Frame] = None):
+        if stack:
+            stack = [Frame(frame) for frame in stack]
 
         return super().__new__(
             cls,
@@ -59,7 +59,7 @@ class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp', 'frames'])):
             old=old,
             new=new,
             timestamp=datetime.now(timezone.utc),
-            frames=frames
+            stack=stack
         )
 
     def to_dict(self) -> dict:
@@ -68,7 +68,7 @@ class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp', 'frames'])):
             'old': self.old,
             'new': self.new,
             'timestamp': self.timestamp.isoformat(),
-            'frames': [frame.to_dict() for frame in self.frames]
+            'stack': [frame.to_dict() for frame in self.stack]
         }
     
     def is_a_change(self) -> bool:
@@ -158,7 +158,7 @@ class ChangeLog:
     def count(self) -> int:
         return len(self.get_selected_logs())
 
-    def push(self, attr, old, new, frames=None) -> None:
+    def push(self, attr, old, new, stack=None) -> None:
         """
         Pushes a new entry to the log
         """
@@ -167,7 +167,7 @@ class ChangeLog:
                 attr=attr, 
                 old=copy.deepcopy(old), 
                 new=copy.deepcopy(new),
-                frames=frames
+                stack=stack
             )
         )
 
@@ -221,7 +221,7 @@ class ChangeLog:
             formatted_val = f"'{green(log.new)}'" if is_str else green(log.new)
             text = f"{divider}\n{yellow(log.attr)} = {formatted_val}\n"
 
-            for i, frame in enumerate(log.frames):
+            for i, frame in enumerate(log.stack):
                 if i == 0:
                     text += textwrap.indent(
                         f"\n{frame.filename}: {frame.lineno} - {frame.function}\n{cyan(frame.code)}\n", '    '
