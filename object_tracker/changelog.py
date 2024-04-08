@@ -6,18 +6,61 @@
 # """
 
 import copy
+import textwrap
 from typing import List, Optional, Set
 from collections import namedtuple
 from datetime import datetime, timezone
 from object_tracker.exceptions import InvalidChangeLogOperationException
 
 
-class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp'])):
+yellow = lambda x: f"\033[93m{x}\033[0m"
+green = lambda x: f"\033[92m{x}\033[0m"
+cyan = lambda x: f"\033[96m{x}\033[0m"
+gray = lambda x: f"\033[90m{x}\033[0m"
+normal = lambda x: f"\033[0m{x}\033[0m"
+
+
+class Frame(namedtuple('Frame', ['filename', 'lineno', 'function', 'code'])):
+    """
+    The Frame class is a named tuple that represents a single frame in the stack trace.
+    """
+    def __new__(cls, frame):
+        return super().__new__(
+            cls,
+            filename=frame.filename,
+            lineno=frame.lineno,
+            function=frame.function,
+            code=frame.code_context[0].strip()
+        )
+    
+    def to_dict(self) -> dict:
+        return {
+            'filename': self.filename,
+            'lineno': self.lineno,
+            'function': self.function,
+            'code': self.code
+        }
+
+    def __str__(self):
+        return f"{self.filename}: {self.lineno}, {self.function}\n{self.code}"
+
+
+class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp', 'frames'])):
     """
     The Entry class is a named tuple that represents a single log entry in the ChangeLog.
     """
-    def __new__(cls, attr, old, new):
-        return super().__new__(cls, attr, old, new, datetime.now(timezone.utc))
+    def __new__(cls, attr, old, new, frames: List[Frame] = None):
+        if frames:
+            frames = [Frame(frame) for frame in frames]
+
+        return super().__new__(
+            cls,
+            attr=attr,
+            old=old,
+            new=new,
+            timestamp=datetime.now(timezone.utc),
+            frames=frames
+        )
 
     def to_dict(self) -> dict:
         return {
@@ -25,6 +68,7 @@ class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp'])):
             'old': self.old,
             'new': self.new,
             'timestamp': self.timestamp.isoformat(),
+            'frames': [frame.to_dict() for frame in self.frames]
         }
     
     def is_a_change(self) -> bool:
@@ -109,20 +153,12 @@ class ChangeLog:
         return logs[-1] if logs else None
     
     def all(self) -> List[Entry]:
-        logs = self.get_selected_logs()
-        return logs
-
-    def delete(self) -> None:
-        if self.buffer:
-            self.log = [entry for entry in self.log if entry not in self.buffer]
-        else:
-            self.log = []
-        self.reset_buffer()
+        return self.get_selected_logs()
 
     def count(self) -> int:
         return len(self.get_selected_logs())
 
-    def push(self, attr, old, new) -> None:
+    def push(self, attr, old, new, frames=None) -> None:
         """
         Pushes a new entry to the log
         """
@@ -130,7 +166,8 @@ class ChangeLog:
             Entry(
                 attr=attr, 
                 old=copy.deepcopy(old), 
-                new=copy.deepcopy(new)
+                new=copy.deepcopy(new),
+                frames=frames
             )
         )
 
@@ -171,3 +208,27 @@ class ChangeLog:
             return True
 
         return False
+
+    def replay(self):
+        """
+        A Generator to print the logs in a human readable format
+        For selected logs, it will show the frame by frame changes of the object
+        """
+        logs = self.get_selected_logs()
+        for log in logs:
+            divider = "-" * 50
+            is_str = isinstance(log.new, str)
+            formatted_val = f"'{green(log.new)}'" if is_str else green(log.new)
+            text = f"{divider}\n{yellow(log.attr)} = {formatted_val}\n"
+
+            for i, frame in enumerate(log.frames):
+                if i == 0:
+                    text += textwrap.indent(
+                        f"\n{frame.filename}: {frame.lineno} - {frame.function}\n{cyan(frame.code)}\n", '    '
+                    )
+                else:
+                    text += textwrap.indent(
+                        f"\n{gray(f'{frame.filename}: {frame.lineno} - {frame.function}')}\n{gray(frame.code)}\n", '    '
+                    )
+
+            yield text
