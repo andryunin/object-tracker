@@ -126,12 +126,6 @@ class Tracker:
         Returns the log as a dictionary
         """
         return self.log.to_dict()
-    
-    def was_attribute_changed(self, attr) -> bool:
-        """
-        Checks if an attribute was changed atleast once in the past
-        """
-        return self.log.was_changed(attr)
 
     def has_attribute_changed(self, attr, obj=None) -> bool:
         """
@@ -143,13 +137,6 @@ class Tracker:
             return getattr(self.initial_state, attr, None) != getattr(obj, attr, None)
 
         return self.log.has_changed(attr)
-    
-    def was_changed(self) -> bool:
-        """
-        Checks if an attribute was changed atleast once in the past
-        """
-        attrs = self.log.get_unique_attributes()
-        return any([self.log.was_changed(attr) for attr in attrs])
 
     def has_changed(self, obj=None) -> bool:
         """

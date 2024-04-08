@@ -153,19 +153,6 @@ class ChangeLog:
                 continue
             return self.log[i]
         return None
-
-    def get_last_change(self, attr=None) -> Optional[Entry]:
-        """
-        Returns the last valid change in the log
-        """
-        return self.get_first_log_for_attribute(attr, reverse=True, only_changes=True)
-
-    def was_changed(self, attr) -> bool:
-        """
-        Checks if an attribute was ever changed by verifying against the log,
-        even if it is the same as the current value now
-        """
-        return True if self.get_last_change(attr) else False
     
     def has_changed(self, attr) -> bool:
         """
