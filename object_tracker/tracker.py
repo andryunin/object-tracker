@@ -64,6 +64,7 @@ class Tracker:
         observers: List[ObserverType] = None,
         attribute_observer_map: Dict[str, List[ObserverType]] = None,
         auto_notify: bool = True,
+        changes_only: bool = True,
     ) -> None:
         
         self.log = ChangeLog() # init query log
@@ -71,6 +72,7 @@ class Tracker:
         self.observers = observers or []
         self.auto_notify = auto_notify
         self.attribute_observer_map = attribute_observer_map or {}
+        self.changes_only = changes_only
         # needed when this Tracker class is used as a standalone class
         self.initial_state = deepcopy(initial_state) if initial_state else None
         logger.debug(f"Tracker instance created: {self}")
@@ -124,6 +126,12 @@ class Tracker:
         Returns the log as a dictionary
         """
         return self.log.to_dict()
+    
+    def was_attribute_changed(self, attr) -> bool:
+        """
+        Checks if an attribute was changed atleast once in the past
+        """
+        return self.log.was_changed(attr)
 
     def has_attribute_changed(self, attr, obj=None) -> bool:
         """
@@ -134,7 +142,14 @@ class Tracker:
                 raise InitialStateMissingException()
             return getattr(self.initial_state, attr, None) != getattr(obj, attr, None)
 
-        return self.log.has_changes(attr)
+        return self.log.has_changed(attr)
+    
+    def was_changed(self) -> bool:
+        """
+        Checks if an attribute was changed atleast once in the past
+        """
+        attrs = self.log.get_unique_attributes()
+        return any([self.log.was_changed(attr) for attr in attrs])
 
     def has_changed(self, obj=None) -> bool:
         """
@@ -148,13 +163,13 @@ class Tracker:
             return obj.__dict__ != self.initial_state.__dict__
 
         attrs = self.log.get_unique_attributes()
-        return any([self.log.has_changes(attr) for attr in attrs])
+        return any([self.log.has_changed(attr) for attr in attrs])
     
-    def track(self, attr, old, new, raise_excp=True) -> None:
+    def track(self, attr, old, new) -> None:
         """
         Tracks an attribute change. Untracked if the old and new values are the same
-        """            
-        if old == new:
+        """
+        if self.changes_only and old == new:
             return
         self.log.push(attr=attr, old=old, new=new)
         if self.auto_notify:

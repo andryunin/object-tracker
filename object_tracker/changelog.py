@@ -5,6 +5,7 @@
 # This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 # """
 
+import copy
 from typing import List, Optional, Set
 from collections import namedtuple
 from datetime import datetime, timezone
@@ -25,6 +26,9 @@ class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp'])):
             'new': self.new,
             'timestamp': self.timestamp.isoformat(),
         }
+    
+    def is_a_change(self) -> bool:
+        return self.old != self.new
 
 
 class ChangeLog:
@@ -60,37 +64,41 @@ class ChangeLog:
         self.reset_buffer()
         return logs
 
-    def apply_filters(self, attrs, exclude=False) -> 'ChangeLog':
+    def apply_filters(self, attrs=None, exclude=False, changes_only=False) -> 'ChangeLog':
         """
         applies filters on the log and saves it in the buffer
         """
-        if not isinstance(attrs, (list, tuple, set)):
+        if attrs and not isinstance(attrs, (list, tuple, set)):
             raise InvalidChangeLogOperationException(
                 "filter/exclude method needs a sequence of attributes as arguments"
             )
 
-        if exclude:
-            self.buffer = [entry for entry in self.log if entry.attr not in attrs]
-        else:
-            self.buffer = [entry for entry in self.log if entry.attr in attrs]
+        if attrs:
+            if exclude:
+                self.buffer = [entry for entry in self.log if entry.attr not in attrs]
+            else:
+                self.buffer = [entry for entry in self.log if entry.attr in attrs]
+
+        if changes_only:
+            self.buffer = [entry for entry in self.buffer if entry.is_a_change()]
 
         return self
 
-    def filter(self, *attrs) -> 'ChangeLog':
+    def filter(self, *attrs, changes_only=False) -> 'ChangeLog':
         """
         eg: obj.filter('name', 'age').all()
         """
         if not attrs:
             raise InvalidChangeLogOperationException("filter method needs atleast one attribute")
-        return self.apply_filters(attrs)
+        return self.apply_filters(attrs, False, changes_only)
     
-    def exclude(self, *attrs) -> 'ChangeLog':
+    def exclude(self, *attrs, changes_only=False) -> 'ChangeLog':
         """
         eg: obj.exclude('name').all()
         """
         if not attrs:
             return InvalidChangeLogOperationException("exclude method needs atleast one attribute")
-        return self.apply_filters(attrs, True)
+        return self.apply_filters(attrs, True, changes_only)
     
     def first(self) -> Optional[Entry]:
         logs = self.get_selected_logs()
@@ -121,8 +129,8 @@ class ChangeLog:
         self.log.append(
             Entry(
                 attr=attr, 
-                old=old, 
-                new=new
+                old=copy.deepcopy(old), 
+                new=copy.deepcopy(new)
             )
         )
 
@@ -132,31 +140,47 @@ class ChangeLog:
         """
         log = self.get_selected_logs()
         return set([entry.attr for entry in log])
+    
+    def get_first_log_for_attribute(self, attr, reverse=False, only_changes=False):
+        """
+        Helper function to get a log entry.
+        """
+        range_func = reversed if reverse else iter
+        for i in range_func(range(len(self.log))):
+            if attr is not None and self.log[i].attr != attr:
+                continue
+            if only_changes and not self.log[i].is_a_change():
+                continue
+            return self.log[i]
+        return None
 
     def get_last_change(self, attr=None) -> Optional[Entry]:
         """
         Returns the last valid change in the log
         """
-        log = self.get_selected_logs()
-        for i in range(len(log) - 1, -1, -1):
-            if attr is not None and log[i].attr != attr:
-                continue
-            return log[i]
-        return None
+        return self.get_first_log_for_attribute(attr, reverse=True, only_changes=True)
 
-    def get_first_change(self, attr=None) -> Optional[Entry]:
+    def was_changed(self, attr) -> bool:
         """
-        Returns the first valid change in the log
-        """
-        log = self.get_selected_logs()
-        for i in range(len(log)):
-            if attr is not None and log[i].attr != attr:
-                continue
-            return log[i]
-        return None
-
-    def has_changes(self, attr) -> bool:
-        """
-        Checks if an attribute has changed by verifying against the log
+        Checks if an attribute was ever changed by verifying against the log,
+        even if it is the same as the current value now
         """
         return True if self.get_last_change(attr) else False
+    
+    def has_changed(self, attr) -> bool:
+        """
+        Checks if any attribute of the object has been changed by verifying against the log
+        """
+        first = self.get_first_log_for_attribute(attr)
+        last = self.get_first_log_for_attribute(attr, reverse=True)
+
+        if not first and not last:
+            return False
+        
+        if not first or not last:
+            return True
+        
+        if first.old != last.new:
+            return True
+
+        return False
