@@ -17,30 +17,39 @@ class Tracker:
     """
     The Tracker class is responsible for tracking changes to an object's attributes.
 
-    This class can be used - 
-
+    This class can be used in 3 ways - 
     1. By itself to track changes to an object's attributes.
-
-        obj = MyClass()
-        tracker = Tracker(obj)
-        obj.attribute = 'new_value'
-        print(tracker.has_changed(obj))
-    
     2. Along with the TrackerMixin class to automatically track changes to an object's attributes.
-
-        class MyClass(TrackerMixin):
-            def __init__(self):
-                self.tracker = Tracker()
-
-        obj = MyClass()
-        obj.attribute = 'new_value'
-        print(obj.tracker.has_changed())
-
     3. Manually by calling the track method to track changes to an attribute.
 
-        tracker = Tracker()
-        tracker.track('attribute', 'old_value', 'new_value')
-        print(tracker.has_attribute_changed('attribute'))
+    ```
+    from object_tracker import Tracker
+
+    # Track changes to an object's attributes.
+    class MyClass:
+        pass
+    
+    obj = MyClass()
+    tracker = Tracker(obj)
+    obj.attribute = 'new_value'
+    print(tracker.has_changed(obj))
+
+
+    # Use with the TrackerMixin class to automatically track an object's attributes.
+    class MyClass(TrackerMixin):
+        def __init__(self):
+            self.tracker = Tracker()
+
+    obj = MyClass()
+    obj.attribute = 'new_value'
+    print(obj.tracker.has_changed())
+
+
+    # Manually calling the track method to track changes to an attribute.
+    tracker = Tracker()
+    tracker.track('attribute', 'old_value', 'new_value')
+    print(tracker.has_attribute_changed('attribute'))
+    ```
     """
 
     def __init__(
