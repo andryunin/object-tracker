@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
     <img src="https://github.com/saurabh0719/object-tracker/assets/127945292/d7e9dbc2-9b55-4fae-b40a-bd47dcd8979b" width ="600">
 </p>
 
