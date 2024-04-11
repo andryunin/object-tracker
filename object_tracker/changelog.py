@@ -30,7 +30,7 @@ class Frame(namedtuple('Frame', ['filename', 'lineno', 'function', 'code'])):
             filename=frame.filename,
             lineno=frame.lineno,
             function=frame.function,
-            code=frame.code_context[0].strip()
+            code=frame.code_context[0].strip() if frame.code_context else None
         )
     
     def to_dict(self) -> dict:
