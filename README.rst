@@ -1,7 +1,7 @@
 object-tracker
 --------------
 
-A pure python object change and history tracker. Monitor all changes in your objects lifecycle and trigger callback functions to capture them.
+A pure python object state tracker. Monitor all changes in your object's lifecycle, query the history changelog, and trigger callback functions to capture them.
 
 View the `Github repository <https://github.com/saurabh0719/object-tracker>`__ and the `official docs <https://github.com/saurabh0719/object-tracker#README>`__.
 
@@ -14,11 +14,10 @@ Tested for python 3.6, 3.7 and above.
 Key Features
 ------------
 
--  Determine if a python object has changed.
--  Investigate change history through the changelog.
--  Trigger callback functions whenever the object or an attribute has changed.
--  Simple and structured API. 
--  Queryable change history log.
+-  Determine if a python object has changed state during it's lifecycle.
+-  Investigate change history by querying a structured changelog.
+-  Trigger callback functions whenever an (or any) attribute has changed.
+-  Use it as a decorator, a class mixin or on its own.
 
 License
 -------
@@ -34,25 +33,52 @@ License
 Usage :
 ~~~~~~~~~~~~~
 
+Use the `@track` decorator to track an object's attributes.
+
 .. code:: python
 
-   from object_tracker import ObjectTracker
+    from object_tracker import track
 
     def observer(attr, old, new):
         print(f"Observer : {attr} -> {old} - {new}")
 
-    class User(ObjectTracker):
-        def __init__(self, name) -> None:
-            ObjectTracker.__init__(self, observers=[observer,])
+    @track('name', 'age', observers=[observer,])
+    class User:
+        def __init__(self, name, age):
             self.name = name
+            self.age = age
 
-
-    user = User("A")
-    print(user.tracker.changed()) 
-    # False
-
-    user.name = "B" # observers will be triggered
-    # Observer : name -> A - B
-
-    print(user.tracker.changed()) 
+    user = User(name='Alice', age=30)
+    user.name = 'Bob'
+    # Observer : name -> Alice - Bob
+    print(user.tracker.has_changed()) 
     # True
+    print(user.tracker.has_attribute_changed('name'))
+    # True
+
+Or use the `Tracker` class 
+
+.. code:: python
+
+    class MyClass:
+        pass
+    
+    obj = MyClass()
+    tracker = Tracker(obj)
+    obj.attribute = 'new_value'
+    print(tracker.has_changed(obj))
+    # True
+
+
+Or use it with the mixin class `TrackerMixin`:
+
+
+.. code:: python
+
+   from object_tracker import TrackerMixin, Tracker
+    
+    class User(TrackerMixin):
+        def __init__(self, name, age):
+            self.name = name
+            self.age = age
+            self.tracker = Tracker()

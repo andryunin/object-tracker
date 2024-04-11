@@ -13,3 +13,12 @@ class InitialStateMissingException(Exception):
 
     def __str__(self):
         return f"InitialStateMissingError -> {self.message}"
+
+
+class InvalidChangeLogOperationException(Exception):
+    def __init__(self, message=None):
+        help = "Invalid operation on ChangeLog"
+        self.message = message or help
+
+    def __str__(self):
+        return f"InvalidChangeLogOperationException -> {self.message}"

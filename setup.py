@@ -6,7 +6,7 @@ long_description = pathlib.Path("README.rst").read_text()
 setup(
     name="object-tracker",
     packages=["object_tracker"],
-    version="1.0.1",
+    version="2.0.0",
     license="three-clause BSD",
     description="A pure python object change and history tracker. Monitor all changes in your objects lifecycle and trigger callback functions to capture them.",
     long_description=long_description,
@@ -21,7 +21,9 @@ setup(
         "object history", 
         "tracker", 
         "change tracker", 
-        "history"
+        "history",
+        "state",
+        "state tracker",
     ],
     project_urls={
         "Documentation": "https://github.com/saurabh0719/object-tracker#README",

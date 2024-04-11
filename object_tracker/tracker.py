@@ -5,132 +5,183 @@ All rights reserved.
 This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
 """
 
+import logging
 from copy import deepcopy
-from .exceptions import InitialStateMissingException
-from .query_log import QueryLog
+from typing import Dict, List
+
+from object_tracker.exceptions import InitialStateMissingException
+from object_tracker.changelog import ChangeLog
+from object_tracker.types import ObserverType
+
+logger = logging.getLogger(__name__)
+
 
 
 class Tracker:
     """
+    The Tracker class is responsible for tracking changes to an object's attributes.
+    ```
+    from object_tracker import Tracker
 
-    The Tracker
+    # Track changes to an object's attributes.
+    class MyClass:
+        pass
+    
+    obj = MyClass()
+    tracker = Tracker(obj)
+    obj.attribute = 'new_value'
+    print(tracker.has_changed(obj))
 
-    It maintains 2 lists - 
-        -> log : the permanent store of log entries
-        -> buffer : temporary memory to store state while filtering 
 
+    # Manually calling the track method to track changes to an attribute.
+    tracker = Tracker()
+    tracker.track('attribute', 'old_value', 'new_value')
+    print(tracker.has_attribute_changed('attribute'))
+    ```
     """
 
-    def __init__(self, **kwargs) -> None:
-        self.log = QueryLog() # init query log
-        self.observers = kwargs.get("observers", [])
-        self.auto_notify = kwargs.get("auto_notify", True)
-        self.ignore_init = kwargs.get("ignore_init", True)
-        self.observable_attributes = kwargs.get("observable_attributes", [])
-        self.attribute_observer_map = kwargs.get("attribute_observer_map", {})
-        # needed when this Tracker class is used as a standalone
-        if kwargs.get("initial_state"):
-            self.initial_state = deepcopy(kwargs.get("initial_state"))
-        else:
-            self.initial_state = None
+    def __init__(
+        self,
+        initial_state: any = None,
+        attributes: List[str] = None,
+        observers: List[ObserverType] = None,
+        attribute_observer_map: Dict[str, List[ObserverType]] = None,
+        auto_notify: bool = True,
+        stack_trace: bool = True,
+        changes_only: bool = False,
+    ) -> None:
+        """
+        Initializes the Tracker instance.
+
+        Args:
+            initial_state (any):
+                The initial state of the object to be tracked. Default is None.
+
+            attributes (List[str]): 
+                The attributes to track. Default is None ie. all attributes are tracked.
+
+            observers (List[ObserverType]):
+                The list of global observers called to notify any attribute change.
+                Default is None.
+
+            attribute_observer_map (Dict[str, List[ObserverType]]):
+                A map of observers for specific to some attributes. Default is None.
+
+            auto_notify (bool):
+                Whether to automatically notify observers on attribute change.
+                Default is True.
+
+            stack_trace (bool):
+                Whether to store the call stack when an attribute changes.
+                Default is True.
+
+            changes_only (bool):
+                Whether to track only the attributes that have changed.
+                Default is False.
+
+        Attributes:
+            log (ChangeLog):
+                The log to store attribute changes.
+        """
+        
+        self.log = ChangeLog() # init query log
+        self.attributes = attributes # if it is None -> track all attributes
+        self.observers = observers or []
+        self.auto_notify = auto_notify
+        self.attribute_observer_map = attribute_observer_map or {}
+        self.stack_trace = stack_trace
+        self.changes_only = changes_only
+        # needed when this Tracker class is used as a standalone class
+        self.initial_state = deepcopy(initial_state) if initial_state else None
+        logger.debug(f"Tracker instance created: {self}")
 
     def __str__(self) -> str:
-        return f"Tracker Log -> BUFFER {self.log.buffer_len} LOG {self.log.log_len}"
+        return self.log.__str__()
     
     def __repr__(self) -> str:
-        return str({'log': self.log.log_len, 'buffer': self.log.buffer_len})
+        return self.log.__repr__()
     
     def __len__(self) -> int:
-        return self.log.log_len
+        return len(self.log.log)
 
-    def _call_observers(self, attr, old, new, observers: list):
+    def _call_observers(self, attr, old, new, observers: List[ObserverType]) -> None:
         for observer in observers:
             observer(attr, old, new)
 
     def notify_observers(self, attr, old, new) -> None:
         """
-
         Notifies all observers 
 
-        if self.auto_notify is False
-        This method will have to be called manually
-
+        if auto_notify is False, this will have to be invoked manually.
         """
         if self.attribute_observer_map:
             observers = self.attribute_observer_map.get(attr, [])
             self._call_observers(attr, old, new, observers)
-            return
+            logger.debug(f"Attribute Observers notified for change in {attr}")
         
         if self.observers:
-            if self.observable_attributes and attr not in self.observable_attributes:
-                return 
-            else:
-                self._call_observers(attr, old, new, self.observers)
+            self._call_observers(attr, old, new, self.observers)
+            logger.debug(f"Common Observers notified for change in {attr}")
 
-    @property
-    def history(self):
+    def should_track(self, attr) -> bool:
         """
-        Query the log by using tracker.history
+        Checks if the attribute can be tracked
         """
-        return self.log
+        if self.attributes is None:
+            return True
+        return attr in self.attributes
+    
+    def store_call_stack(self) -> bool:
+        """
+        Returns whether the call stack should be stored
+        """
+        return self.stack_trace
 
     def set_initial_state(self, obj) -> None:
         """
         creates a deepcopy of the current object 
-            -> needed when tracker is used independently ie. no ObjectTracker inherited
+            -> needed when tracker is used independently without a mixin for __setattr__
         """
         self.initial_state = deepcopy(obj)
+        logger.debug(f"Initial state set for {self}")
 
-    def print(self):
+    def to_dict(self) -> dict:
         """
-        Utility std print fn
+        Returns the log as a dictionary
         """
-        self.log.print()
+        return self.log.to_dict()
 
-    def attribute_changed(self, attr, obj=None) -> bool:
+    def has_attribute_changed(self, attr, obj=None) -> bool:
         """
         Checks if an attribute has changed by verifying against the log
         """
-
         if obj:
             if not self.initial_state:
                 raise InitialStateMissingException()
             return getattr(self.initial_state, attr, None) != getattr(obj, attr, None)
 
-        first = None
-        last = None
+        return self.log.has_changed(attr)
 
-        for i in range(len(self.log.log)):
-            if attr != self.log.log[i].attr:
-                continue
-            if not first:
-                first = self.log.log[i]
-                continue
-            last = self.log.log[i]
-
-        if not first:
-            return False
-
-        if first and not last:
-            return True if first.old != first.new else False
-
-        return first.old != last.new
-
-    def changed(self, obj=None) -> bool:
+    def has_changed(self, obj=None) -> bool:
         """
-        Checks if any attribute of the object has been hanged by verifying against the log
-        """
+        Checks if any attribute of the object has been changed by verifying against the log
 
+        If obj is provided, it will compare the object with the initial_state. If not, it will check the log
+        """
         if obj:
             if not self.initial_state:
                 raise InitialStateMissingException()
             return obj.__dict__ != self.initial_state.__dict__
 
-        seen = set()
-        for entry in self.log.log:
-            if entry.attr in seen:
-                continue
-            if self.attribute_changed(entry.attr):
-                return True
-            seen.add(entry.attr)
-        return False
+        attrs = self.log.get_unique_attributes()
+        return any([self.log.has_changed(attr) for attr in attrs])
+    
+    def track(self, attr, old, new, stack=None) -> None:
+        """
+        Tracks an attribute change. Untracked if the old and new values are the same
+        """
+        if self.changes_only and old == new:
+            return
+        self.log.push(attr=attr, old=old, new=new, stack=stack)
+        if self.auto_notify:
+            self.notify_observers(attr, old, new)
