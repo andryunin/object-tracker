@@ -32,6 +32,10 @@ Tested for python `3.7` and above.
 * [Basic Usage](#usage)   
 * [How does it work?](#how)
 * [API](#trackerapi)
+  * [@track](#track)
+  * [TrackerMixin](#trackermixin)
+  * [Tracker](#tracker)
+  * [ChangeLog](#changelog)
 * [Tests](#tests)
 * [Release notes](#releases)
 * [License](#license) 
@@ -109,6 +113,8 @@ The entire module is roughly 310 LOC, don't hesitate to read from source directl
 <span id="trackerapi"></span>
 ## API
 
+
+<span id="track"></span>
 ## @track
 
 ```python
@@ -170,6 +176,7 @@ def track(
 [Go back to the table of contents](#contents)
 
 
+<span id="trackermixin"></span>
 ## TrackerMixin
 
 ```python
@@ -200,6 +207,7 @@ class TrackerMixin:
 [Go back to the table of contents](#contents)
 
 
+<span id="tracker"></span>
 ## Tracker
 
 ```python
@@ -273,6 +281,7 @@ class Tracker:
 [Go back to the table of contents](#contents)
 
 
+<span id="changelog"></span>
 ## ChangeLog
 
 The `tracker` instance has the `log` inside it containing a list of `Entry` objs
