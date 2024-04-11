@@ -1,9 +1,9 @@
-# """
-# Copyright (c) Saurabh Pujari
-# All rights reserved.
+"""
+Copyright (c) Saurabh Pujari
+All rights reserved.
 
-# This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
-# """
+This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree.
+"""
 
 import copy
 import textwrap
@@ -81,6 +81,42 @@ class ChangeLog:
 
     This class provides methods to add new entries to the log, filter the log based on attribute names, 
     exclude certain attributes from the log, and clear the log.
+
+    Methods:
+
+    - push(attr, old, new, stack=None): Pushes a new entry to the log.
+
+    - filter(*attrs, changes_only=False): Filters the log based on the given attributes.
+
+    - exclude(*attrs, changes_only=False): Excludes the given attributes from the log.
+
+    - first(): Returns the first log entry.
+
+    - last(): Returns the last log entry.
+
+    - all(): Returns all log entries.
+
+    - count(): Returns the number of log entries.
+
+    - replay(): A generator to print the logs in a human-readable format.
+
+    - get_unique_attributes(): Returns all attributes in the log.
+
+    - has_changed(attr): Checks if any attribute of the object has been changed by verifying against the log.
+
+    - reset_buffer(): Resets the buffer.
+
+    Eg.
+
+        The `tracker` obj has the `log` attribute which is an instance of the `ChangeLog` class.
+
+        tracker.log.filter('name', 'age') -> Returns logs for 'name' and 'age' attributes
+
+        tracker.log.exclude('name') -> Excludes logs for 'name' attribute
+
+        tracker.log.first() -> Returns the first log entry
+
+        tracker.filter('name').count() -> Returns the number of log entries for 'name' attribute
     """
 
     def __init__(self) -> None:

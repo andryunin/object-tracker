@@ -4,7 +4,7 @@
 
 <br>
 
-A pure python object change &amp; history tracker. Monitor all changes in your object's lifecycle and trigger callback functions to capture them. :pencil:
+A pure python object state tracker. Monitor all changes in your object's lifecycle, query the history changelog, and trigger callback functions to capture them. :pencil:
 
 ```sh
 $ pip install object-tracker
@@ -19,12 +19,10 @@ Tested for python `3.7` and above.
 <span id="features"></span>
 ## Key Features
 
--  Determine if a python object has changed during it's lifecycle.
--  Investigate change history through the structured changelog.
--  Trigger callback functions whenever an attribute has changed.
--  Simple and structured API. 
--  Queryable change history log. 
-
+-  Determine if a python object has changed state during it's lifecycle.
+-  Investigate change history by querying a structured changelog.
+-  Trigger callback functions whenever an (or any) attribute has changed.
+-  Use it as a decorator, a class mixin or on its own.
 
 <hr>
 
@@ -32,17 +30,8 @@ Tested for python `3.7` and above.
 ## Table of Contents :
 * [Key Features](#features)
 * [Basic Usage](#usage)   
-* [Getting Started](#guide)
-    * [How does it work?](#how)
-       * [class ObjectTracker](#objecttracker)
-       * [class Tracker](#tracker)
-* [Tracker API](#trackerapi)
-    * [Configuration](#config)
-    * [Track object change](#change)
-    * [History](#history)
-    * [Querying change history](#query)
-    * [Adding observers](#observers)
-    * [Using a standalone Tracker instance ie. No inheritance](#lonetracker)
+* [How does it work?](#how)
+* [API](#trackerapi)
 * [Tests](#tests)
 * [Release notes](#releases)
 * [License](#license) 
@@ -51,395 +40,363 @@ Tested for python `3.7` and above.
 <span id="usage"></span>
 ## Basic Usage 
 
-Inherit the `ObjectTracker` class to create a trackable object.
+Use the `@track` decorator to track an object's attributes.
 
 ```python
 
-from object_tracker import ObjectTracker
+from object_tracker import track
 
 def observer(attr, old, new):
     print(f"Observer : {attr} -> {old} - {new}")
 
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self, observers=[observer,])
+@track('name', 'age', observers=[observer,])
+class User:
+    def __init__(self, name, age):
         self.name = name
+        self.age = age
 
-user = User("A")
-print(user.tracker.changed()) 
-# False
-
-user.name = "B" # observers will be triggered
-# Observer : name -> A - B
-
-print(user.tracker.changed()) 
+user = User(name='Alice', age=30)
+user.name = 'Bob'
+# Observer : name -> Alice - Bob
+print(user.tracker.has_changed()) 
+# True
+print(user.tracker.has_attribute_changed('name'))
 # True
 
 ```
 
-To use the tracker without inheriting - [read this guide](#lonetracker)
-
-<span id="guide"></span>
-## Getting Started
-
-The `ObjectTracker` class implements `__setattr__` and tracks change history. Any object that needs to be tracked must inherit `ObjectTracker`.
-
-[Go back to the table of contents](#contents)
-
-<span id="help"></span>
-### How does it work?
-
-The **object_tracker** module consists of 2 major classes - 
-
-#### class `ObjectTracker` 
-
-An inheritable class that implements the `__setattr__` methods and reports changes to the `Tracker` class that's initialised inside it.
-
-```python 
-from object_tracker import ObjectTracker
-
-class TrackerObject(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self)
-        pass
-```
-- It adds a `tracker` attribute to the subclass and can be accessed by `self.tracker`.
-
-- Don't forget to initialise call it's `__init__` . You can define various parameters, see [the configuration guide](#config)
- 
-- See further implementation details in `object_tracker/wrapper.py`.
-
-
-#### class `Tracker` 
-
-This object is initialised inside the `ObjectTracker` and does all the heavylifting ie. storing change history and checking if any change has occured. Can be accessed through the `tracker` attribute when inheriting `ObjectTracker`. 
-
-**Note** - The  `**kwargs` passed to `ObjectTracker` are passed down to the `Tracker` instance to initialise it. 
+Or use the `Tracker` class 
 
 ```python
 
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self, observers=[observer,])
-        self.name = name
-
-user = User("A")
-user.name = "B" # o
-print(user.tracker.changed()) 
+class MyClass:
+        pass
+    
+obj = MyClass()
+tracker = Tracker(obj)
+obj.attribute = 'new_value'
+print(tracker.has_changed(obj))
+# True
 
 ```
 
-- See further implementation details in `object_tracker/tracker.py`.
+Or use it with the mixin class `TrackerMixin`
+
+```python
+
+from object_tracker import TrackerMixin, Tracker
+    
+class User(TrackerMixin):
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+        self.tracker = Tracker()
+
+```
+
+<span id="help"></span>
+## How does it work?
+
+The decorator `@track` and the mixin `TrackerMixin` implement the `__setattr__` and `__setitem__` dunder methods to intercept and log a change to an attribute. 
+
+The tracker is an instance of the `Tracker` class which logs all changes to the `ChangeLog`
+
+The entire module is roughly 310 LOC, don't hesitate to read from source directly!
 
 [Go back to the table of contents](#contents)
-
-<hr>
 
 
 <span id="trackerapi"></span>
-## Tracker API
+## API
 
-When an object has inherited `ObjectTracker`, it is now a trackable object. You can access the `Tracker` instance by using the `self.tracker` attribute of your trackable object. 
-
-You can also use a standalone instance of `Tracker`, with some caveats - [read more here](#lonetracker)
-
-<span id="config"></span>
-### Configuration 
-
-There are a bunch of config variables that can be modified when inheriting the `ObjectTracker` class:
-
-**Note** - The  `**kwargs` passed to `ObjectTracker` are passed down to the `Tracker` instance to initialise it. 
-
--  `auto_notify` - default `True` - Autmatically notifies observers everytime an attribute is set. Can be set to `False` and called manually using `notify_observers(self, attr, old, new)`
-
-- `ignore_init` - default `True` - Ignore changes made from `__init__` functions. These will not be pushed to the changelog or be notified. 
-
-- `log` -> An instance of `ChangeLog`, stores a structured log and exposes a query interface to object history. [Read more about it here](#history)
-
-- `observers, observable_attributes, attribute_observer_map` -> Read more about [adding observers](#observers)
+## @track
 
 ```python
+def track(
+    *attributes: List[str],
+    observers: List[ObserverType] = None,
+    attribute_observer_map: Dict[str, List[ObserverType]] = None,
+    auto_notify: bool = True,
+    stack_trace: bool = True,
+    tracker_attribute: str = 'tracker',
+    changes_only: bool = False,
+):
+    """
+    Decorator for tracking attribute changes in a class.
 
-from object_tracker import ObjectTracker
+    ```
+    from object_tracker import track
 
-def observer(attr, old, new):
-    print(f"Observer : {attr} -> {old} - {new}")
+    @track('name', 'age')
+    class User:
+        def __init__(self, name, age):
+            self.name = name
+            self.age = age
 
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self, observers=[observer,], auto_notify=False)
-        self.name = name
+    user = User('Alice', 30)
+    user.name = 'Bob'
+    print(user.tracker.has_changed('name')) # True
+    ```
 
-```
+    Args:
+        *attributes: 
+            The attributes to track.
 
-<br>
+        observers (list, optional): 
+            The observers to notify when an attribute changes. Default is None.
 
-[Go back to the table of contents](#contents)
+        attribute_observer_map (dict, optional): 
+            A map of attributes to observers.Default is None.
 
-<span id="change"></span>
-### Track object change
+        auto_notify (bool, optional):
+            Whether to automatically notify observers when an attribute changes.
+            Default is True.
 
-`changed(obj=None)` checks if _any_ attribute has changed, whereas `tracker.attribute_changed(attr, obj=None)` checks if a single attribute has changed. The `obj` argument is only needed when using a standalone instance of `Tracker` instead of inheriting `ObjectTracker`, [read more here](#lonetracker)
+        stack_trace (bool, optional):
+            Whether to store the call stack when an attribute changes. Default is True.
 
+        tracker_attribute (str, optional):
+            The attribute holding the Tracker object. Default is 'tracker'.
 
-```python
+        changes_only (bool, optional):
+            Whether to track only changes to attributes or all assignments.
+            Default is False.
 
-user = User("A")
-print(user.tracker.changed()) 
-# False
-
-user.name = "B" 
-
-print(user.tracker.changed()) 
-# True
-
-print(user.tracker.attribute_changed('name'))
-# True
-
-print(user.tracker.attribute_changed('age'))
-# False
-
-```
-
-
-[Go back to the table of contents](#contents)
-
-<span id="history"></span>
-### History
-
-Each `Tracker` object has a structured change history log - `self.log` - for all the attributes, an instance of `ChangeLog`.
-
-The `ChangeLog` object maintains 2 lists, a `log` of every change and a query `buffer` for temporary storage while [querying](#query)
-
-Both lists carry instances of `Entry`, a structured log record containing 
-
-- `attr` - String representation of the attribute that was modified
-
-- `old` - Old value of the attribute
-
-- `new` - New value of the attribute
-
-- `timestamp` - An instance of `datetime.datetime` 
-
-Every change is implicitly pushed - `push(attr, old, new)` - to the `ChangeLog` instance. 
-
-The log/history instance can be accessed by `self.history` or `self.log` 
-
-```python
-
-user = User("A")
-user.name = "B" 
-
-user.tracker.print()
-user.tracker.history.print() 
-
-history = user.tracker.history.all()
-print(history) 
-
+    Returns:
+        The decorated class with attribute tracking.
+    """
 ```
 
 [Go back to the table of contents](#contents)
 
 
-<span id="query"></span>
-### Querying change history
+## TrackerMixin
 
-The `ChangeLog` class offers a simple query interface to filter logs - 
+```python
+class TrackerMixin:
+    """
+    Mixin class for tracking attribute changes.
+    Overrides the `__setattr__` and `__setitem__` methods to track changes.
 
-Terminal methods (do not chain ie. `return self`) - 
+    It uses the `Tracker` object, stored in `tracker_attr`, to record changes.
+    Modify the `tracker_attr` attribute to change the attribute name.
 
-- `all(self)` - returns the current query buffer
+    ```
+    from object_tracker import TrackerMixin, Tracker
+    
+    class User(TrackerMixin):
+        def __init__(self, name, age):
+            self.name = name
+            self.age = age
+            self.tracker = Tracker()
+    ```
 
-- `delete(self)` - deletees the entire query buffer
+    Attributes:
+        tracker_attr (str):
+            The attribute holding the Tracker object. Default is `tracker`.
+    """
+```
 
-- `count(self)` - Counts the number of log entries 
+[Go back to the table of contents](#contents)
 
-Chaned methods (`return self`) -
 
-- `filter(self, attrs)` - Accepts an optional attribute string OR list of attribute strings, and filters out their logs.
+## Tracker
 
-- `exclude(self, atrrs)` - Accepts an optional attribute string OR list of attribute strings, and excludes their logs from the query buffer
+```python
+class Tracker:
+    """
+    The Tracker class is responsible for tracking changes to an object's attributes.
+    ```
+    from object_tracker import Tracker
 
-The `ChangeLog` instance can be accessed by `tracker.history` or `tracker.log`
+    # Track changes to an object's attributes.
+    class MyClass:
+        pass
+    
+    obj = MyClass()
+    tracker = Tracker(obj)
+    obj.attribute = 'new_value'
+    print(tracker.has_changed(obj))
 
-```python 
 
-class User(ObjectTracker):
-    def __init__(self, name, age) -> None:
-        super().__init__()
+    # Manually calling the track method to track changes to an attribute.
+    tracker = Tracker()
+    tracker.track('attribute', 'old_value', 'new_value')
+    print(tracker.has_attribute_changed('attribute'))
+    ```
+    """
+
+    def __init__(
+        self,
+        initial_state: any = None,
+        attributes: List[str] = None,
+        observers: List[ObserverType] = None,
+        attribute_observer_map: Dict[str, List[ObserverType]] = None,
+        auto_notify: bool = True,
+        stack_trace: bool = True,
+        changes_only: bool = False,
+    ) -> None:
+        """
+        Initializes the Tracker instance.
+
+        Args:
+            initial_state (any):
+                The initial state of the object to be tracked. Default is None.
+
+            attributes (List[str]): 
+                The attributes to track. Default is None ie. all attributes are tracked.
+
+            observers (List[ObserverType]):
+                The list of observers to notify on attribute change. Default is None.
+
+            attribute_observer_map (Dict[str, List[ObserverType]]):
+                A map of attributes to observers. Default is None.
+
+            auto_notify (bool):
+                Whether to automatically notify observers on attribute change.
+                Default is True.
+
+            stack_trace (bool):
+                Whether to store the call stack when an attribute changes.
+                Default is True.
+
+            changes_only (bool):
+                Whether to track only the attributes that have changed.
+                Default is False.
+
+        Attributes:
+            log (ChangeLog):
+                The log to store attribute changes.
+        """
+```
+
+[Go back to the table of contents](#contents)
+
+
+## ChangeLog
+
+The `tracker` instance has the `log` inside it containing a list of `Entry` objs
+
+Each `Entry` in a change log has -
+-   `attr` - The attribute that was changed
+-   `old` - copy of the old value
+-   `new` - copy of the new value
+-   `timestamp` - UTC datetime
+-   `stack` - a list of `frames` from inspect leading up to the change.
+
+
+```python
+class ChangeLog:
+    """
+    The ChangeLog class is responsible for storing and managing a log of attribute changes.
+
+    This class provides methods to add new entries to the log, filter the log based on attribute names, 
+    exclude certain attributes from the log, and clear the log.
+
+    Methods:
+
+    - push(attr, old, new, stack=None): Pushes a new entry to the log.
+
+    - filter(*attrs, changes_only=False): Filters the log based on the given attributes.
+
+    - exclude(*attrs, changes_only=False): Excludes the given attributes from the log.
+
+    - first(): Returns the first log entry.
+
+    - last(): Returns the last log entry.
+
+    - all(): Returns all log entries.
+
+    - count(): Returns the number of log entries.
+
+    - replay(): A generator to print the logs in a human-readable format.
+
+    - get_unique_attributes(): Returns all attributes in the log.
+
+    - has_changed(attr): Checks if any attribute of the object has been changed by verifying against the log.
+
+    - reset_buffer(): Resets the buffer.
+
+    Eg.
+
+        The `tracker` obj has the `log` attribute which is an instance of the `ChangeLog` class.
+
+        tracker.log.filter('name', 'age') -> Returns logs for 'name' and 'age' attributes
+
+        tracker.log.exclude('name') -> Excludes logs for 'name' attribute
+
+        tracker.log.first() -> Returns the first log entry
+
+        tracker.filter('name').count() -> Returns the number of log entries for 'name' attribute
+    """
+```
+
+
+[Go back to the table of contents](#contents)
+
+
+<span id="examples"></span>
+## Examples
+
+The `replay()` method was repurposed from ![Madison May's tracker](https://github.com/madisonmay/tracker).
+
+```python
+from object_tracker import track
+
+@track('name', 'age')
+class User:
+    def __init__(self, name, age):
         self.name = name
         self.age = age
 
-user = User("A", 20)
-user.name = "B" 
-user.age = 50
+user = User(name='Alice', age=30)
+user.name = 'Bob'
+user.name = 'John'
+user.age = 31
 
-user.tracker.history.print()
-# [{'attr': 'name', 'old': 'A', 'new': 'B', 'timestamp': datetime.datetime(2023, 3, 15, 15, 4, 52, 583628)}, {'attr': 'age', 'old': 20, 'new': 50, 'timestamp': datetime.datetime(2023, 3, 15, 15, 4, 52, 583665)}]
+print("\n Has object changed - ", user.tracker.has_changed()) # True
+print("\n Has 'name' changed - ", user.tracker.has_attribute_changed('name')) # True
+print("\n Num of changes in 'name' - ", user.tracker.log.filter('name').count()) # 2
+print("\n Num of changes in 'age' - ", user.tracker.log.filter('age').count()) # 1
 
-print(user.tracker.history.count())
-# 2
-
-name_history = user.tracker.history.filter('name').all()
-print(name_history)
-# [{'attr': 'name', 'old': 'A', 'new': 'B', 'timestamp': datetime.datetime(2023, 3, 15, 15, 4, 52, 583628)}]
-
-print(user.tracker.history.filter('name').count()) 
-# 1
-
-print(user.tracker.history.exclude('name').count())
-# 1
-
-user.tracker.history.filter('age').delete()
-
-print(user.tracker.history.count())
-# 1
-
-user.tracker.history.delete()
-
-print(user.tracker.history.count())
-# 0
+print("\n All logs - ")
+for log in user.tracker.log.replay():
+    print(log)
 
 ```
 
-[Go back to the table of contents](#contents)
-
-
-<span id="observers"></span>
-### Adding observers
-
-Observer fn signature - 
-
-```python
-def observer(attr, old, new)
-```
-
-You can set observer functions that will be triggered whenever a change takes place for an attribute 
-
-```python
-
-from object_tracker import ObjectTracker
-
-def observer(attr, old, new):
-    print(f"Observer : {attr} -> {old} - {new}")
-
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self, observers=[observer,])
-        self.name = name
-
-
-user = User("A")
-print(user.tracker.changed()) 
-# False
-
-user.name = "B" # observers will be triggered
-# Observer : name -> A - B
-
-print(user.tracker.changed()) 
-# True
+Output - 
 
 ```
 
-`attribute_observer_map` - default `{}` - This is a dictionary of attribute strings mapped to a `list of observer functions` that will be called whenever a change takes place on that specific attribute.
+ Has object changed -  True
 
-**Note** - The  `**kwargs` passed to `ObjectTracker` are passed down to the `Tracker` instance to initialise it. 
+ Has 'name' changed -  True
 
-```python
+ Num of changes in 'name' -  2
 
-def observer_a(attr, old, new):
-    print(f"Observer A: {attr} -> {old} - {new}")
+ Num of changes in 'age' -  1
 
-def observer_b(attr, old, new):
-    print(f"Observer B: {attr} -> {old} - {new}")
+ All logs - 
+--------------------------------------------------
+name = 'Bob'
 
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        attribute_observer_map = {
-            'name': [observer_a, observer_b], 
-            'age': [observer_a,]
-        }
-        ObjectTracker.__init__(self,attribute_observer_map=attribute_observer_map)
-        self.name = name
-        self.age
+    trial.py: 10 - <module>
+    user.name = 'Bob'
 
-```
+--------------------------------------------------
+name = 'John'
 
-When `attribute_observer_map` is empty, then the `observers` list (default `[]`) is used. 
+    trial.py: 11 - <module>
+    user.name = 'John'
 
+--------------------------------------------------
+age = 31
 
-```python
-
-def observer_a(attr, old, new):
-    print(f"Observer A: {attr} -> {old} - {new}")
-
-def observer_b(attr, old, new):
-    print(f"Observer B: {attr} -> {old} - {new}")
-
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self, observers=[observer_a, observer_b])
-        self.name = name
+    trial.py: 12 - <module>
+    user.age = 31
 
 ```
-
-- You can set a list of `observable attributes` (default `[]`), and the `observers` will only be called when there is a change in one of those attributes. 
-
-
-```python
-
-from object_tracker import ObjectTracker
-
-def observer(attr, old, new):
-    print(f"Observer : {attr} -> {old} - {new}")
-
-class User(ObjectTracker):
-    def __init__(self, name) -> None:
-        ObjectTracker.__init__(self, observers=[observer,], observable_attributes=['name',])
-        self.name = name
-        self.age = age
-
-```
-
-[Go back to the table of contents](#contents)
-
-
-<span id="lonetracker"></span>
-## Using a standalone Tracker instance ie. No inheritance
-
-It is possible to use a standalone instance of the `Tracker` class, by setting a special `initial_state` attribute. Eg - 
-
-```python
-
-from object_tracker import Tracker
-
-class UntrackedUser:
-    def __init__(self, name, age) -> None:
-        self.name = name
-        self.age = age
-
-user = UntrackedUser("A", 100)
-tracker = Tracker(initial_state=user)
-
-print(tracker.changed(user))
-# False
-
-user.name = "B"
-
-print(tracker.changed(user))
-# True
-
-```
-
-#### Caveats - 
-
-- `changed(obj=None)` AND `attribute_changed(obj=None)` have to be called with an object passed as argument. Otherwise you will get False results.
-
-- The `Tracker` object has to contain the `initial_state` of the object you intend to track, otherwise calling `changed(obj)` or `attribute_changed(obj)` will raise a `InitialStateMissingException` 
-
-- The standalone instance DOES NOT use the `ChangeLog` object, hence the change tracker fully depends on the difference of initial_state and the current object's `__dict__` representation. Hence there is no history to query ie. It will be empty always. 
-
-[Go back to the table of contents](#contents)
 
 <hr>
 
@@ -459,7 +416,7 @@ $ python -m unittest -v
 <span id="releases"></span>
 ## Release notes 
 
-* Latest - `v1.0.0` 
+* Latest - `v2.0.0` 
 
 View object-tracker's detailed [release history](https://github.com/saurabh0719/object-tracker/releases/).
 

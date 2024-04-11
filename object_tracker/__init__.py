@@ -4,7 +4,22 @@ The object_tracker package provides classes to track changes to an object's attr
 ```
 from object_tracker import TrackerMixin, Tracker
 
-# Eg. 1
+
+# Eg. 1 Using the decorator
+
+@track('name', 'age')
+class User:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+
+user = User(name='Alice', age=30)
+user.name = 'Bob'
+print(user.tracker.has_changed('name')) # True
+
+
+# Eg. 2 Using the TrackerMixin
+
 class User(TrackerMixin):
     def __init__(self, name, age):
         self.name = name
@@ -16,7 +31,8 @@ user.name = 'Bob'
 print(user.tracker.has_changed()) # True
 
 
-# Eg. 2
+# Eg. 3 Using the Tracker class
+
 class MyClass:
         pass
     
@@ -26,7 +42,8 @@ obj.attribute = 'new_value'
 print(tracker.has_changed(obj)) # True
 
 
-# Eg. 3
+# Eg. 4 Using the Tracker class as a standalone tracker
+
 tracker = Tracker()
 tracker.track('attribute', 'old_value', 'new_value')
 print(tracker.has_attribute_changed('attribute')) # True
@@ -41,9 +58,12 @@ This source code is licensed under the BSD-style license found in the LICENSE fi
 
 import inspect
 import logging
+from typing import Dict, List
+
 from .exceptions import InitialStateMissingException, InvalidChangeLogOperationException
 from .changelog import Entry, ChangeLog
 from .tracker import Tracker
+from .types import ObserverType
 
 
 __all__ = [
@@ -64,6 +84,7 @@ class TrackerMixin:
     Overrides the `__setattr__` and `__setitem__` methods to track changes.
 
     It uses the `Tracker` object, stored in `tracker_attr`, to record changes.
+    Modify the `tracker_attr` attribute to change the attribute name.
 
     ```
     from object_tracker import TrackerMixin, Tracker
@@ -76,7 +97,8 @@ class TrackerMixin:
     ```
 
     Attributes:
-        tracker_attr (str): The attribute holding the Tracker object.
+        tracker_attr (str):
+            The attribute holding the Tracker object. Default is `tracker`.
     """
 
     tracker_attr: str = 'tracker'
@@ -114,9 +136,9 @@ class TrackerMixin:
 
 
 def track(
-    *attributes,
-    observers: list = None,
-    attribute_observer_map: dict = None,
+    *attributes: List[str],
+    observers: List[ObserverType] = None,
+    attribute_observer_map: Dict[str, List[ObserverType]] = None,
     auto_notify: bool = True,
     stack_trace: bool = True,
     tracker_attribute: str = 'tracker',
@@ -139,12 +161,32 @@ def track(
     print(user.tracker.has_changed('name')) # True
     ```
 
+    All arguments are passed to the `Tracker` object.
+
     Args:
-        *attributes: The attributes to track.
-        observers (list, optional): The observers to notify when an attribute changes.
-        attribute_observer_map (dict, optional): A map of attributes to observers.
-        auto_notify (bool, optional): Whether to automatically notify observers when an attribute changes.
-        tracker_attribute (str, optional): The attribute holding the Tracker object.
+        *attributes: 
+            The attributes to track.
+
+        observers (List[ObserverType]):
+                The list of global observers called to notify any attribute change.
+                Default is None.
+
+        attribute_observer_map (Dict[str, List[ObserverType]]):
+            A map of observers for specific to some attributes. Default is None.
+
+        auto_notify (bool, optional):
+            Whether to automatically notify observers when an attribute changes.
+            Default is True.
+
+        stack_trace (bool, optional):
+            Whether to store the call stack when an attribute changes. Default is True.
+
+        tracker_attribute (str, optional):
+            The attribute holding the Tracker object. Default is 'tracker'.
+
+        changes_only (bool, optional):
+            Whether to track only changes to attributes or all assignments.
+            Default is False.
 
     Returns:
         The decorated class with attribute tracking.

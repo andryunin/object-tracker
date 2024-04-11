@@ -7,26 +7,19 @@ This source code is licensed under the BSD-style license found in the LICENSE fi
 
 import logging
 from copy import deepcopy
-from typing import Callable, Dict, List
+from typing import Dict, List
 
 from object_tracker.exceptions import InitialStateMissingException
 from object_tracker.changelog import ChangeLog
+from object_tracker.types import ObserverType
 
 logger = logging.getLogger(__name__)
 
-
-ObserverType = Callable[[str, object, object], None]
 
 
 class Tracker:
     """
     The Tracker class is responsible for tracking changes to an object's attributes.
-
-    This class can be used in 3 ways - 
-    1. By itself to track changes to an object's attributes.
-    2. Along with the TrackerMixin class to automatically track changes to an object's attributes.
-    3. Manually by calling the track method to track changes to an attribute.
-
     ```
     from object_tracker import Tracker
 
@@ -38,16 +31,6 @@ class Tracker:
     tracker = Tracker(obj)
     obj.attribute = 'new_value'
     print(tracker.has_changed(obj))
-
-
-    # Use with the TrackerMixin class to automatically track an object's attributes.
-    class MyClass(TrackerMixin):
-        def __init__(self):
-            self.tracker = Tracker()
-
-    obj = MyClass()
-    obj.attribute = 'new_value'
-    print(obj.tracker.has_changed())
 
 
     # Manually calling the track method to track changes to an attribute.
@@ -67,6 +50,39 @@ class Tracker:
         stack_trace: bool = True,
         changes_only: bool = False,
     ) -> None:
+        """
+        Initializes the Tracker instance.
+
+        Args:
+            initial_state (any):
+                The initial state of the object to be tracked. Default is None.
+
+            attributes (List[str]): 
+                The attributes to track. Default is None ie. all attributes are tracked.
+
+            observers (List[ObserverType]):
+                The list of global observers called to notify any attribute change.
+                Default is None.
+
+            attribute_observer_map (Dict[str, List[ObserverType]]):
+                A map of observers for specific to some attributes. Default is None.
+
+            auto_notify (bool):
+                Whether to automatically notify observers on attribute change.
+                Default is True.
+
+            stack_trace (bool):
+                Whether to store the call stack when an attribute changes.
+                Default is True.
+
+            changes_only (bool):
+                Whether to track only the attributes that have changed.
+                Default is False.
+
+        Attributes:
+            log (ChangeLog):
+                The log to store attribute changes.
+        """
         
         self.log = ChangeLog() # init query log
         self.attributes = attributes # if it is None -> track all attributes
