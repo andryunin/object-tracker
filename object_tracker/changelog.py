@@ -49,7 +49,7 @@ class Entry(namedtuple('Entry', ['attr', 'old', 'new', 'timestamp', 'stack'])):
     """
     The Entry class is a named tuple that represents a single log entry in the ChangeLog.
     """
-    def __new__(cls, attr, old, new, stack: List[Frame] = None):
+    def __new__(cls, attr, old, new, stack: Optional[List[Frame]] = None):
         if stack:
             stack = [Frame(frame) for frame in stack]
 
@@ -132,7 +132,7 @@ class ChangeLog:
     def __iter__(self):
         return iter(self.log)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> List[dict]:
         return [entry.to_dict() for entry in self.log]
     
     def reset_buffer(self):

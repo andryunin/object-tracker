@@ -7,7 +7,7 @@ This source code is licensed under the BSD-style license found in the LICENSE fi
 
 import logging
 from copy import deepcopy
-from typing import Dict, List
+from typing import Dict, List, Any, Optional
 
 from object_tracker.exceptions import InitialStateMissingException
 from object_tracker.changelog import ChangeLog
@@ -42,10 +42,10 @@ class Tracker:
 
     def __init__(
         self,
-        initial_state: any = None,
-        attributes: List[str] = None,
-        observers: List[ObserverType] = None,
-        attribute_observer_map: Dict[str, List[ObserverType]] = None,
+        initial_state: Any = None,
+        attributes: Optional[List[str]] = None,
+        observers: Optional[List[ObserverType]] = None,
+        attribute_observer_map: Optional[Dict[str, List[ObserverType]]] = None,
         auto_notify: bool = True,
         stack_trace: bool = True,
         changes_only: bool = False,
@@ -145,7 +145,7 @@ class Tracker:
         self.initial_state = deepcopy(obj)
         logger.debug(f"Initial state set for {self}")
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> List[dict]:
         """
         Returns the log as a dictionary
         """

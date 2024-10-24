@@ -58,7 +58,7 @@ This source code is licensed under the BSD-style license found in the LICENSE fi
 
 import inspect
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from .exceptions import InitialStateMissingException, InvalidChangeLogOperationException
 from .changelog import Entry, ChangeLog
@@ -107,11 +107,12 @@ class TrackerMixin:
         super().__init__(*args, **kwargs)
         logger.debug(f"Tracker initialized for {self}")
 
-    def __track_changes(self, attr, value, tracker=None) -> None:
+    def __track_changes(self, attr, value) -> None:
         if attr == self.tracker_attr:
             return
 
-        tracker: Tracker = getattr(self, self.tracker_attr, None)
+        tracker: Optional[Tracker] = getattr(self, self.tracker_attr, None)
+
         if tracker is None:
             return None
 
@@ -132,13 +133,13 @@ class TrackerMixin:
 
     def __setitem__(self, attr, value) -> None:
         self.__track_changes(attr, value)
-        super().__setitem__(attr, value)
+        super().__setitem__(attr, value)  # type: ignore
 
 
 def track(
     *attributes: List[str],
-    observers: List[ObserverType] = None,
-    attribute_observer_map: Dict[str, List[ObserverType]] = None,
+    observers: Optional[List[ObserverType]] = None,
+    attribute_observer_map: Optional[Dict[str, List[ObserverType]]] = None,
     auto_notify: bool = True,
     stack_trace: bool = True,
     tracker_attribute: str = 'tracker',
