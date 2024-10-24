@@ -177,7 +177,7 @@ class ChangeLog:
         eg: obj.exclude('name').all()
         """
         if not attrs:
-            return InvalidChangeLogOperationException("exclude method needs atleast one attribute")
+            raise InvalidChangeLogOperationException("exclude method needs atleast one attribute")
         return self.apply_filters(attrs, True, changes_only)
     
     def first(self) -> Optional[Entry]:
